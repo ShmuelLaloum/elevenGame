@@ -37,8 +37,15 @@ class Game {
     for (var player in players) {
       player.hand = List.generate(4, (_) => drawCard());
     }
-    for (int i = 0; i < 4; i++) {
-      tableCards.add(drawCard());
+
+    while (tableCards.length < 4 && deck.isNotEmpty) {
+      GameCard card = drawCard();
+      if (card.rank == 'JACK') {
+        // דוחפים את הג'ק לסוף החפיסה
+        deck.insert(0, card);
+      } else {
+        tableCards.add(card);
+      }
     }
   }
 
@@ -74,6 +81,18 @@ class Game {
     }
   }
 
+  bool allHandsEmpty() {
+    return players.every((player) => player.hand.isEmpty);
+  }
+
+  void dealNewRoundIfNeeded() {
+    if (allHandsEmpty() && deck.length >= players.length * 4) {
+      for (var player in players) {
+        player.hand = List.generate(4, (_) => drawCard());
+      }
+    }
+  }
+
   /// פונקציה שמוצאת קלפים שיוצרים סכום 11 עם הקלף ששוחק
   List<GameCard> findCardsThatSumTo11(GameCard playedCard) {
     int playedValue = getCardValue(playedCard);
@@ -103,4 +122,48 @@ class Game {
   void nextPlayer() {
     currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
   }
+
+  Map<String, int> calculatePoints() {
+    List<GameCard> team1Cards = [...players[0].collected];
+    if (players.length > 2) team1Cards.addAll(players[2].collected);
+
+    List<GameCard> team2Cards = [...players[1].collected];
+    if (players.length > 3) team2Cards.addAll(players[3].collected);
+
+    int team1Points = getPointsForCards(team1Cards);
+    int team2Points = getPointsForCards(team2Cards);
+
+    return {
+      'team1': team1Points,
+      'team2': team2Points,
+    };
+  }
+
+  int getPointsForCards(List<GameCard> cards) {
+    int points = 0;
+    int clubsCount = 0;
+
+    for (var card in cards) {
+      if (card.suit == 'DIAMONDS' && card.rank == '10') {
+        points += 3;
+      } else if (card.suit == 'CLUBS' && card.rank == '2') {
+        points += 2;
+      } else if (card.rank == 'ACE') {
+        points += 1;
+      } else if (card.rank == 'JACK') {
+        points += 1;
+      }
+
+      if (card.suit == 'CLUBS') {
+        clubsCount++;
+      }
+    }
+
+    if (clubsCount >= 7) {
+      points += 7;
+    }
+
+    return points;
+  }
+
 }

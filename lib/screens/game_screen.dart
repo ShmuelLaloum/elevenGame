@@ -60,7 +60,6 @@ class _GameScreenState extends State<GameScreen> {
       });
       return;
     }
-
     final playedCard = selectedHandCard!;
     if (!currentPlayer.hand.contains(playedCard)) {
       setState(() {
@@ -68,7 +67,6 @@ class _GameScreenState extends State<GameScreen> {
       });
       return;
     }
-
     final total = game.getCardValue(playedCard) + selectedTableCards.fold(0, (sum, c) => sum + game.getCardValue(c));
 
     bool isValidMove = false;
@@ -83,22 +81,38 @@ class _GameScreenState extends State<GameScreen> {
         shouldStayOnTable = false;
       }
     } else if (playedCard.rank == 'QUEEN') {
-      final taken = game.tableCards.where((c) => c.rank == 'QUEEN').toList();
-      if (taken.isNotEmpty) {
+      final queensOnTable = game.tableCards.where((c) => c.rank == 'QUEEN').toList();
+      if (queensOnTable.length == 3) {
+        currentPlayer.collected.addAll(queensOnTable);
+        game.tableCards.removeWhere((c) => queensOnTable.contains(c));
+        isValidMove = true;
+        shouldStayOnTable = false;
+      } else if (queensOnTable.length >= 1) {
+        // רגיל – לוקחת רק מלכה אחת
+        final taken = [queensOnTable.first];
         currentPlayer.collected.addAll(taken);
         game.tableCards.removeWhere((c) => taken.contains(c));
         isValidMove = true;
         shouldStayOnTable = false;
       }
     } else if (playedCard.rank == 'KING') {
-      final taken = game.tableCards.where((c) => c.rank == 'KING').toList();
-      if (taken.isNotEmpty) {
+      final kingsOnTable = game.tableCards.where((c) => c.rank == 'KING').toList();
+      if (kingsOnTable.length == 3) {
+        // אם יש בדיוק 3 מלכים – לוקחים את כולם
+        currentPlayer.collected.addAll(kingsOnTable);
+        game.tableCards.removeWhere((c) => kingsOnTable.contains(c));
+        isValidMove = true;
+        shouldStayOnTable = false;
+      } else if (kingsOnTable.length >= 1) {
+        // לוקחים רק מלך אחד
+        final taken = [kingsOnTable.first];
         currentPlayer.collected.addAll(taken);
         game.tableCards.removeWhere((c) => taken.contains(c));
         isValidMove = true;
         shouldStayOnTable = false;
       }
-    } else if (total == 11 && selectedTableCards.isNotEmpty) {
+    }
+    else if (total == 11 && selectedTableCards.isNotEmpty) {
       currentPlayer.collected.addAll(selectedTableCards);
       game.tableCards.removeWhere((c) => selectedTableCards.contains(c));
       isValidMove = true;
@@ -129,6 +143,7 @@ class _GameScreenState extends State<GameScreen> {
       selectedTableCards.clear();
       errorMessage = (!isValidMove && !shouldStayOnTable) ? 'הבחירה לא חוקית. נסה שוב.' : '';
       game.nextPlayer();
+      game.dealNewRoundIfNeeded();
     });
   }
 
@@ -258,4 +273,32 @@ class _GameScreenState extends State<GameScreen> {
       ),
     );
   }
+
+  void showEndOfRoundDialog() {
+    final scores = game.calculatePoints();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("סיום סיבוב!"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("קבוצה 1 קיבלה: ${scores['team1']} נקודות"),
+            Text("קבוצה 2 קיבלה: ${scores['team2']} נקודות"),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // אפשר לאתחל משחק חדש או לחזור למסך הראשי
+            },
+            child: Text("אוקיי"),
+          ),
+        ],
+      ),
+    );
+  }
+
 }
