@@ -85,13 +85,19 @@ class Game {
     return players.every((player) => player.hand.isEmpty);
   }
 
-  void dealNewRoundIfNeeded() {
-    if (allHandsEmpty() && deck.length >= players.length * 4) {
-      for (var player in players) {
-        player.hand = List.generate(4, (_) => drawCard());
-      }
+  bool dealNewRoundIfNeeded() {
+    bool allHandsEmpty = players.every((p) => p.hand.isEmpty);
+    if (allHandsEmpty && deck.isNotEmpty) {
+      // אם כל הידיים ריקות והקופה לא ריקה, מחלקים קלפים מחדש
+      dealCards();
+      return false; // המשחק ממשיך
+    } else if (allHandsEmpty && deck.isEmpty) {
+      // אם כל הידיים ריקות ואין יותר קלפים, המשחק נגמר
+      return true;
     }
+    return false; // סיבוב עוד לא נגמר
   }
+
 
   /// פונקציה שמוצאת קלפים שיוצרים סכום 11 עם הקלף ששוחק
   List<GameCard> findCardsThatSumTo11(GameCard playedCard) {
@@ -124,20 +130,52 @@ class Game {
   }
 
   Map<String, int> calculatePoints() {
-    List<GameCard> team1Cards = [...players[0].collected];
-    if (players.length > 2) team1Cards.addAll(players[2].collected);
+    int team1Points = 0;
+    int team2Points = 0;
 
-    List<GameCard> team2Cards = [...players[1].collected];
-    if (players.length > 3) team2Cards.addAll(players[3].collected);
+    List<GameCard> team1Cards = [];
+    List<GameCard> team2Cards = [];
 
-    int team1Points = getPointsForCards(team1Cards);
-    int team2Points = getPointsForCards(team2Cards);
+    if (players.length >= 2) {
+      team1Cards.addAll(players[0].collected);
+      team2Cards.addAll(players[1].collected);
+    }
+    if (players.length >= 4) {
+      team1Cards.addAll(players[2].collected);
+      team2Cards.addAll(players[3].collected);
+    }
+
+    // ניקוד רגיל
+    for (var card in team1Cards) {
+      if (card.suit == 'DIAMONDS' && card.rank == '10') team1Points += 3;
+      if (card.suit == 'CLUBS' && card.rank == '2') team1Points += 2;
+      if (card.rank == 'ACE') team1Points += 1;
+      if (card.rank == 'JACK') team1Points += 1;
+    }
+
+    for (var card in team2Cards) {
+      if (card.suit == 'DIAMONDS' && card.rank == '10') team2Points += 3;
+      if (card.suit == 'CLUBS' && card.rank == '2') team2Points += 2;
+      if (card.rank == 'ACE') team2Points += 1;
+      if (card.rank == 'JACK') team2Points += 1;
+    }
+
+    // ספירת תלתנים
+    int team1Clubs = team1Cards.where((c) => c.suit == 'CLUBS').length;
+    int team2Clubs = team2Cards.where((c) => c.suit == 'CLUBS').length;
+
+    if (team1Clubs > team2Clubs) {
+      team1Points += 7;
+    } else if (team2Clubs > team1Clubs) {
+      team2Points += 7;
+    }
 
     return {
       'team1': team1Points,
       'team2': team2Points,
     };
   }
+
 
   int getPointsForCards(List<GameCard> cards) {
     int points = 0;

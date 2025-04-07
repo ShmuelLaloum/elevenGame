@@ -143,7 +143,10 @@ class _GameScreenState extends State<GameScreen> {
       selectedTableCards.clear();
       errorMessage = (!isValidMove && !shouldStayOnTable) ? 'הבחירה לא חוקית. נסה שוב.' : '';
       game.nextPlayer();
-      game.dealNewRoundIfNeeded();
+      bool isGameOver = game.dealNewRoundIfNeeded();
+      if (isGameOver) {
+        showEndOfRoundDialog();
+      }
     });
   }
 

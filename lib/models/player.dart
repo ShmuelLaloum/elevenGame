@@ -28,9 +28,37 @@ class Player {
   // חישוב הניקוד של השחקן
   int calculateScore() {
     int score = 0;
+    int clubsCount = 0; // נשתמש בזה בשביל הקבוצה
+
     for (var card in collected) {
-      score += card.getValue(); // שינינו כדי להשתמש בפונקציה חדשה ב-GameCard
+      // אס
+      if (card.rank == 'A') {
+        score += 1;
+      }
+
+      // נסיך
+      if (card.rank == 'J') {
+        score += 1;
+      }
+
+      // 10 יהלום
+      if (card.rank == '10' && card.suit == 'DIAMONDS') {
+        score += 3;
+      }
+
+      // 2 תלתן
+      if (card.rank == '2' && card.suit == 'CLUBS') {
+        score += 2;
+      }
+
+      // ספירה של כל התלתנים (בשביל החישוב הקבוצתי)
+      if (card.suit == 'CLUBS') {
+        clubsCount++;
+      }
     }
+
+    // החזרת הסקור + ספירת תלתנים (אם אתה צריך את זה לשיקול קבוצתי מחוץ לפונקציה)
     return score;
   }
+
 }
