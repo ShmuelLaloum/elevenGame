@@ -6,6 +6,7 @@ class Game {
   List<Player> players;
   List<GameCard> deck = [];
   List<GameCard> tableCards = [];
+  int lastTakerIndex = -1; // יכיל את אינדקס השחקן האחרון שלקח קלף.
   int currentPlayerIndex = 0;
 
   Game(this.players) {
@@ -93,10 +94,17 @@ class Game {
       return false; // המשחק ממשיך
     } else if (allHandsEmpty && deck.isEmpty) {
       // אם כל הידיים ריקות ואין יותר קלפים, המשחק נגמר
-      return true;
+
+      // קח את כל הקלפים מהשולחן לשחקן האחרון שלקח קלף
+      final lastPlayer = players[lastTakerIndex];
+      lastPlayer.collected.addAll(tableCards); // מעבירים את כל הקלפים שנותרו לשחקן הזה
+      tableCards.clear(); // מנקים את השולחן
+
+      return true; // המשחק נגמר
     }
     return false; // סיבוב עוד לא נגמר
   }
+
 
 
   /// פונקציה שמוצאת קלפים שיוצרים סכום 11 עם הקלף ששוחק

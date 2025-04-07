@@ -54,24 +54,31 @@ class _GameScreenState extends State<GameScreen> {
   void confirmMove() {
     final currentPlayer = game.players[game.currentPlayerIndex];
 
+    // אם לא נבחר קלף מהיד
     if (selectedHandCard == null) {
       setState(() {
         errorMessage = 'בחר קלף מהיד קודם';
       });
       return;
     }
+
     final playedCard = selectedHandCard!;
+
+    // אם הקלף לא נמצא ביד של השחקן הנוכחי
     if (!currentPlayer.hand.contains(playedCard)) {
       setState(() {
         errorMessage = 'הקלף הזה לא ביד של השחקן הנוכחי';
       });
       return;
     }
+
+    // חישוב סכום הנקודות (לפי המשחק)
     final total = game.getCardValue(playedCard) + selectedTableCards.fold(0, (sum, c) => sum + game.getCardValue(c));
 
     bool isValidMove = false;
     bool shouldStayOnTable = true;
 
+    // לוגיקה של קלפים שמאפשרים לקחת קלפים מהשולחן
     if (playedCard.rank == 'JACK') {
       final taken = game.tableCards.where((c) => c.rank != 'KING' && c.rank != 'QUEEN').toList();
       if (taken.isNotEmpty) {
@@ -88,7 +95,6 @@ class _GameScreenState extends State<GameScreen> {
         isValidMove = true;
         shouldStayOnTable = false;
       } else if (queensOnTable.length >= 1) {
-        // רגיל – לוקחת רק מלכה אחת
         final taken = [queensOnTable.first];
         currentPlayer.collected.addAll(taken);
         game.tableCards.removeWhere((c) => taken.contains(c));
@@ -98,13 +104,11 @@ class _GameScreenState extends State<GameScreen> {
     } else if (playedCard.rank == 'KING') {
       final kingsOnTable = game.tableCards.where((c) => c.rank == 'KING').toList();
       if (kingsOnTable.length == 3) {
-        // אם יש בדיוק 3 מלכים – לוקחים את כולם
         currentPlayer.collected.addAll(kingsOnTable);
         game.tableCards.removeWhere((c) => kingsOnTable.contains(c));
         isValidMove = true;
         shouldStayOnTable = false;
       } else if (kingsOnTable.length >= 1) {
-        // לוקחים רק מלך אחד
         final taken = [kingsOnTable.first];
         currentPlayer.collected.addAll(taken);
         game.tableCards.removeWhere((c) => taken.contains(c));
@@ -130,12 +134,15 @@ class _GameScreenState extends State<GameScreen> {
       }
     }
 
+    // אם מדובר במעבר חוקי, עדכן את השחקן האחרון שלקח קלף
     if (isValidMove) {
+      game.lastTakerIndex = game.currentPlayerIndex;
       currentPlayer.collected.add(playedCard);
     } else if (shouldStayOnTable) {
       game.tableCards.add(playedCard);
     }
 
+    // הסרת הקלף מהיד של השחקן
     currentPlayer.hand.removeWhere((c) => c == playedCard);
 
     setState(() {
@@ -143,12 +150,18 @@ class _GameScreenState extends State<GameScreen> {
       selectedTableCards.clear();
       errorMessage = (!isValidMove && !shouldStayOnTable) ? 'הבחירה לא חוקית. נסה שוב.' : '';
       game.nextPlayer();
-      bool isGameOver = game.dealNewRoundIfNeeded();
+
+      // אחרי המעבר לשחקן הבא, בודקים אם יש צורך להתחיל סיבוב חדש
+      bool isGameOver = game.dealNewRoundIfNeeded();  // זו הפונקציה של המחלקה Game
+
       if (isGameOver) {
-        showEndOfRoundDialog();
+        showEndOfRoundDialog();  // מציג את דיאלוג סיום הסיבוב
       }
     });
   }
+
+
+
 
   Widget buildCard(GameCard card, {bool selected = false, VoidCallback? onTap}) {
     return GestureDetector(
