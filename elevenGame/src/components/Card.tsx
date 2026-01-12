@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import type { Card as CardType } from "../types";
 import { Heart, Diamond, Club, Spade } from "lucide-react";
 import { clsx } from "clsx";
@@ -37,14 +38,38 @@ export const Card = ({
   const Icon = suitIcons[card.suit];
   const colorClass = suitColors[card.suit];
 
+  // Animation Variants
+  const variants: Variants = {
+    initial: { scale: 0.5, rotateY: 0, y: 600, x: -200, opacity: 0 },
+    animate: {
+      scale: isSelected ? 1.1 : 1,
+      rotateY: isFaceDown ? 180 : 0,
+      y: isSelected ? -20 : 0,
+      opacity: 1,
+      transition: { type: "spring", stiffness: 260, damping: 20 },
+    },
+    exit: {
+      scale: 0.2,
+      opacity: 0,
+      rotate: 360,
+      // Move roughly towards "bottom right" (player pile)
+      // We can't know exact screen coords easily without context, but a generic "down-right" drift helps.
+      x: 100,
+      y: 200,
+      transition: { duration: 0.8, ease: "easeInOut" },
+    },
+    hover: { y: -10, scale: 1.05, zIndex: 10 },
+  };
+
   if (isFaceDown) {
     return (
       <motion.div
-        layout
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
+        layoutId={`card-${card.id}`}
+        initial={{ scale: 0.5, y: -200, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        exit={{ scale: 0, opacity: 0 }}
         className={clsx(
-          "relative w-24 h-36 bg-blue-800 rounded-xl shadow-xl border-2 border-blue-900 flex items-center justify-center overflow-hidden",
+          "relative w-24 h-36 bg-blue-800 rounded-xl shadow-xl border-2 border-blue-900 flex items-center justify-center overflow-hidden backface-hidden",
           className
         )}
       >
@@ -56,26 +81,24 @@ export const Card = ({
 
   return (
     <motion.div
-      layout
-      whileHover={{ y: -5, scale: 1.05 }}
+      layoutId={`card-${card.id}`}
+      variants={variants}
+      animate="animate"
+      exit="exit"
+      whileHover="hover"
       whileTap={{ scale: 0.95 }}
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{
-        scale: isSelected ? 1.1 : 1,
-        y: isSelected ? -20 : 0,
-        opacity: 1,
-        boxShadow: isSelected
-          ? "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)"
-          : "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-      }}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       className={clsx(
-        "relative w-24 h-36 bg-white rounded-xl shadow-md border border-slate-200 cursor-pointer select-none flex flex-col justify-between p-2",
+        "relative w-24 h-36 bg-white rounded-xl shadow-md border border-slate-200 cursor-pointer select-none flex flex-col justify-between p-2 transform-style-3d backface-hidden",
         isSelected &&
           "ring-4 ring-blue-500 ring-offset-2 ring-offset-slate-900",
         className
       )}
+      transition={{
+        layout: { duration: 0.3, ease: "easeInOut" }, // Make the move (Hand->Board) snappy (0.3s)
+        default: { type: "spring", stiffness: 180, damping: 30 },
+      }}
     >
       {/* Top Left */}
       <div className={clsx("flex flex-col items-center", colorClass)}>

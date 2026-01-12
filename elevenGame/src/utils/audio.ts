@@ -1,30 +1,74 @@
+// Audio Context Singleton
+let audioCtx: AudioContext | null = null;
+let dealBuffer: AudioBuffer | null = null;
+
+const initAudio = () => {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        // Load Deal Sound
+        fetch('/sounds/deal-card.mp3')
+            .then(res => res.arrayBuffer())
+            .then(arrayBuffer => audioCtx!.decodeAudioData(arrayBuffer))
+            .then(decodedAudio => {
+                dealBuffer = decodedAudio;
+            })
+            .catch(e => console.error("Failed to load deal sound", e));
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    return audioCtx;
+};
+
+// Initialize on first interaction/load if possible, or just lazily
+// We'll call initAudio in the exports or first play.
+
 const playSound = (type: 'deal' | 'capture' | 'play') => {
-    
     try {
-        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-        if (!AudioContext) return;
-        
-        const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        const ctx = initAudio();
+        if (!ctx) return;
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+        const gainNode = ctx.createGain();
+        gainNode.connect(ctx.destination);
 
-        if (type === 'capture') {
-            osc.frequency.setValueAtTime(600, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.1, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        if (type === 'deal') {
+            if (dealBuffer) {
+                const source = ctx.createBufferSource();
+                source.buffer = dealBuffer;
+                gainNode.gain.value = 0.6; // Suggested volume
+                source.connect(gainNode);
+                source.start(0);
+            } else {
+                // Fallback if not loaded yet
+                // Use the white noise fallback momentarily?
+                // Or just try to load it now.
+            }
+        } else if (type === 'capture') {
+            // "Magic" shimmer sound (Synth)
+            const osc = ctx.createOscillator();
+            osc.connect(gainNode);
+            const now = ctx.currentTime;
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.linearRampToValueAtTime(800, now + 0.1);
+            osc.frequency.linearRampToValueAtTime(1200, now + 0.3);
+            
+            gainNode.gain.setValueAtTime(0.1, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+            
             osc.start();
-            osc.stop(ctx.currentTime + 0.1);
+            osc.stop(now + 0.5);
         } else if (type === 'play') {
+             // "Tap" / "Slap" sound (Synth)
+            const osc = ctx.createOscillator();
+            osc.connect(gainNode);
+            const now = ctx.currentTime;
             osc.type = 'triangle';
-            osc.frequency.setValueAtTime(300, ctx.currentTime);
-            gain.gain.setValueAtTime(0.05, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.05);
+            osc.frequency.setValueAtTime(200, now); // Lower thud
+            gainNode.gain.setValueAtTime(0.3, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
             osc.start();
-            osc.stop(ctx.currentTime + 0.05);
+            osc.stop(now + 0.1);
         }
     } catch (e) {
         console.error("Audio error", e);
@@ -32,7 +76,7 @@ const playSound = (type: 'deal' | 'capture' | 'play') => {
 };
 
 export const audio = {
-    playDeal: () => playSound('play'),
+    playDeal: () => playSound('deal'),
     playCapture: () => playSound('capture'),
     playPlace: () => playSound('play'),
 };

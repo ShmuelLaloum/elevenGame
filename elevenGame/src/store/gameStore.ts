@@ -29,7 +29,8 @@ const initialState: GameState = {
   round: 1,
   phase: 'game_over', // Start in game over state to show home screen
   lastCapturingPlayerIndex: null,
-  activeScopaPlayerIndex: null
+  activeScopaPlayerIndex: null,
+  lastBonusEvent: undefined
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({

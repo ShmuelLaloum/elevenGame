@@ -1,5 +1,5 @@
 import type { Card as CardType } from "../types";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "./Card";
 import { clsx } from "clsx";
 
@@ -7,9 +7,17 @@ interface BoardProps {
   cards: CardType[];
   selectedCardIds: string[];
   onCardClick: (cardId: string) => void;
+  baseDelay?: number;
+  disableAnimation?: boolean;
 }
 
-export const Board = ({ cards, selectedCardIds, onCardClick }: BoardProps) => {
+export const Board = ({
+  cards,
+  selectedCardIds,
+  onCardClick,
+  baseDelay = 0,
+  disableAnimation = false,
+}: BoardProps) => {
   const getLayoutConfig = (count: number) => {
     if (count > 15) return { cols: "grid-cols-6", scale: 0.55, gap: "gap-1" };
     if (count > 10) return { cols: "grid-cols-5", scale: 0.7, gap: "gap-1" }; // Reduced from gap-2
@@ -31,34 +39,47 @@ export const Board = ({ cards, selectedCardIds, onCardClick }: BoardProps) => {
           gap
         )}
       >
-        {cards.map((card) => (
-          <motion.div
-            key={card.id}
-            layoutId={card.id}
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: scale, opacity: 1 }}
-            className="transition-all duration-300 flex justify-center items-center origin-center"
-            style={{
-              // Ensure the div itself doesn't take up full space if scaled down,
-              // allowing grid to pack tighter visually if needed,
-              // though grid cell size is determined by cols.
-              width: "100%",
-              height: "100%",
-              maxHeight: "140px", // cap height
-            }}
-          >
-            <div
-              style={{ transform: `scale(${scale})` }}
-              className="origin-center"
+        <AnimatePresence>
+          {cards.map((card) => (
+            <motion.div
+              key={card.id}
+              layoutId={disableAnimation ? undefined : `container-${card.id}`} // Disable layout (flight) if not dealing
+              initial={disableAnimation ? false : { scale: 0.5, opacity: 0 }}
+              animate={{ scale: scale, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{
+                delay: disableAnimation
+                  ? 0
+                  : baseDelay +
+                    0.2 *
+                      (cards.indexOf(card) !== -1 ? cards.indexOf(card) : 0),
+                type: "spring",
+                stiffness: 200,
+                damping: 20,
+              }}
+              className="transition-all duration-300 flex justify-center items-center origin-center"
+              style={{
+                // Ensure the div itself doesn't take up full space if scaled down,
+                // allowing grid to pack tighter visually if needed,
+                // though grid cell size is determined by cols.
+                width: "100%",
+                height: "100%",
+                maxHeight: "140px", // cap height
+              }}
             >
-              <Card
-                card={card}
-                isSelected={selectedCardIds.includes(card.id)}
-                onClick={() => onCardClick(card.id)}
-              />
-            </div>
-          </motion.div>
-        ))}
+              <div
+                style={{ transform: `scale(${scale})` }}
+                className="origin-center"
+              >
+                <Card
+                  card={card}
+                  isSelected={selectedCardIds.includes(card.id)}
+                  onClick={() => onCardClick(card.id)}
+                />
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
       {cards.length === 0 && (

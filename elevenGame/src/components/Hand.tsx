@@ -1,6 +1,6 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import type { Card as CardType } from "../types";
-import React, { useState } from "react";
+import { useState } from "react";
 import { Card } from "./Card";
 
 interface HandProps {
@@ -10,6 +10,7 @@ interface HandProps {
   onCardClick?: (cardId: string) => void;
   onCardDoubleClick?: (cardId: string) => void;
   className?: string;
+  baseDelay?: number;
 }
 
 // Helper component to handle taps
@@ -50,26 +51,43 @@ export const Hand = ({
   onCardClick,
   onCardDoubleClick,
   className,
+  baseDelay = 0,
 }: HandProps) => {
   return (
-    <div className={`flex justify-center -space-x-8 ${className}`}>
-      {cards.map((card, index) => (
-        <motion.div
-          key={card.id}
-          initial={{ y: 50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: index * 0.1 }}
-          style={{ zIndex: index }}
-        >
-          <TapHandler
-            card={card}
-            isBot={isBot}
-            isSelected={selectedCardId === card.id}
-            onSingleTap={() => onCardClick?.(card.id)}
-            onDoubleTap={() => onCardDoubleClick?.(card.id)}
-          />
-        </motion.div>
-      ))}
+    <div
+      className={`flex justify-center -space-x-8 min-h-[144px] ${className}`}
+    >
+      <AnimatePresence>
+        {cards.map((card, index) => (
+          <motion.div
+            key={card.id}
+            layoutId={`container-${card.id}`}
+            initial={{ y: 600, x: 400, rotate: 0, opacity: 0 }}
+            animate={{
+              y: 0,
+              x: 0,
+              rotate: (index - cards.length / 2) * 2,
+              opacity: 1,
+            }}
+            exit={{ y: 200, opacity: 0 }}
+            transition={{
+              type: "spring",
+              stiffness: 200,
+              damping: 20,
+              delay: (baseDelay || 0) + index * 0.2, // Sequential deal
+            }}
+            style={{ zIndex: index }}
+          >
+            <TapHandler
+              card={card}
+              isBot={isBot}
+              isSelected={selectedCardId === card.id}
+              onSingleTap={() => onCardClick?.(card.id)}
+              onDoubleTap={() => onCardDoubleClick?.(card.id)}
+            />
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 };
