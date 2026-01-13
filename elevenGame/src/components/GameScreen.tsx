@@ -69,11 +69,11 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   useEffect(() => {
     // Determine if this is a "New Game" or "Refill"
     // Triggers on Phase/Round change implies New Game/Round.
-    // We also need to trigger on Refill (Deck change? Hand change?)
-    // But this Effect only runs on [phase, round].
 
     // For Round 1 Start:
-    setDealOrder(Math.random() > 0.5 ? 0 : 1);
+    // We need to capture the random order here to stay consistent for this run
+    const currentDealOrder = Math.random() > 0.5 ? 0 : 1;
+    setDealOrder(currentDealOrder);
     setIsDealing(true);
 
     if (isFirstDeal) {
@@ -84,69 +84,61 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       setInitialBoardAnimationDone(true); // Don't hide board
     }
 
-    // Sequence
-    // If First Deal: Init (1.5s) -> Hands -> Board
-    // If Refill: Hands (Immediate) -> Done (Board skipped)
-
+    // Sequence & Audio
     let t1: any, t2: any, t3: any;
 
+    // Audio Timers (we track them to clear if unmounted)
+    const audioTimers: any[] = [];
+
+    const scheduleAudio = (startDelay: number) => {
+      for (let i = 0; i < 4; i++) {
+        audioTimers.push(
+          setTimeout(() => audio.playDeal(), startDelay + i * 200)
+        );
+      }
+    };
+
     if (isFirstDeal) {
+      // Visuals
       t1 = setTimeout(() => setDealPhase("hands"), t_start * 1000);
       t2 = setTimeout(() => setDealPhase("board"), t_board_abs * 1000);
       t3 = setTimeout(() => {
         setIsDealing(false);
         setInitialBoardAnimationDone(true);
       }, (t_board_abs + 1.5) * 1000);
+
+      // Audio (Synced with calculation variables)
+      // Recalculate times based on local currentDealOrder for consistency in this closure
+      // t_start is const 1.5.
+      const p1Start =
+        (t_start + (currentDealOrder === 0 ? 0 : DEAL_DURATION)) * 1000;
+      const p2Start =
+        (t_start + (currentDealOrder === 1 ? 0 : DEAL_DURATION)) * 1000;
+      const boardStart = t_board_abs * 1000;
+
+      scheduleAudio(p1Start);
+      scheduleAudio(p2Start);
+      scheduleAudio(boardStart);
     } else {
       // Refill Sequence (Just Audio + Delay for hands)
-      // We set dealPhase='hands' immediately above.
-      // We just need to turn off isDealing after the hand deal duration.
-      // Duration = ~1.6s (2 players * 0.8)
       t3 = setTimeout(() => setIsDealing(false), 2000);
+
+      // Audio - Immediate start (staggered)
+      // Since we skip intro, base time is 0
+      const p1Start = (currentDealOrder === 0 ? 0 : DEAL_DURATION) * 1000;
+      const p2Start = (currentDealOrder === 1 ? 0 : DEAL_DURATION) * 1000;
+
+      scheduleAudio(p1Start);
+      scheduleAudio(p2Start);
     }
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      audioTimers.forEach(clearTimeout);
     };
   }, [phase, round]); // Removed deck.length to prevent refill animations
-
-  // Audio Sync
-  useEffect(() => {
-    if (!isDealing) return;
-
-    if (isFirstDeal) {
-      // Full Sequence
-      const startP1 = t_p1_abs * 1000;
-      const startP2 = t_p2_abs * 1000;
-      const startBoard = t_board_abs * 1000;
-
-      for (let i = 0; i < 4; i++) {
-        setTimeout(() => audio.playDeal(), startP1 + i * 200);
-        setTimeout(() => audio.playDeal(), startP2 + i * 200);
-        setTimeout(() => audio.playDeal(), startBoard + i * 200);
-      }
-    } else {
-      // Refill Sequence (No Intro, No Board)
-      // P1 + P2 only.
-      // P1 starts at 0 relative to now? Or staggered?
-      // Let's reuse the stagger logic but relative to 0.
-      // However, renders might need the delay prop?
-      // If we set dealPhase='hands', the components mount/update.
-      // We can just play sound immediately.
-
-      const startP1 = (dealOrder === 0 ? 0 : DEAL_DURATION) * 1000;
-      const startP2 = (dealOrder === 1 ? 0 : DEAL_DURATION) * 1000;
-
-      for (let i = 0; i < 4; i++) {
-        setTimeout(() => audio.playDeal(), startP1 + i * 200);
-        setTimeout(() => audio.playDeal(), startP2 + i * 200);
-      }
-    }
-  }, [dealPhase, isDealing, isFirstDeal]); // Trigger ONCE when reset to init occurs.
-  // Dependency: When we reset, we schedule everything.
-  // Actually, better dependency is `round`.
 
   useEffect(() => {
     // Debug helper

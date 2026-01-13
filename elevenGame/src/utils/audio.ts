@@ -23,6 +23,9 @@ const initAudio = () => {
 // Initialize on first interaction/load if possible, or just lazily
 // We'll call initAudio in the exports or first play.
 
+// Counter for debug
+let dealSoundCount = 0;
+
 const playSound = (type: 'deal' | 'capture' | 'play') => {
     try {
         const ctx = initAudio();
@@ -32,6 +35,8 @@ const playSound = (type: 'deal' | 'capture' | 'play') => {
         gainNode.connect(ctx.destination);
 
         if (type === 'deal') {
+            dealSoundCount++;
+            console.log(`DEBUG: Deal sound played. Total: ${dealSoundCount}`);
             if (dealBuffer) {
                 const source = ctx.createBufferSource();
                 source.buffer = dealBuffer;
