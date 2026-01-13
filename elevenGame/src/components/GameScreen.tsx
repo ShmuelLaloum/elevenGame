@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState} from "react";
 import { ScoringModal } from "./ScoringModal";
 import { CapturedCardsModal } from "./CapturedCardsModal";
 import { useGameStore } from "../store/gameStore";

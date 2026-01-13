@@ -1,4 +1,4 @@
-import type { Card, Player } from "../types";
+import type { Player } from "../types";
 
 export interface ScoreBreakdown {
   clubsCount: number;
@@ -12,8 +12,7 @@ export interface ScoreBreakdown {
 }
 
 export const calculateScore = (
-  player: Player,
-  scopas: number
+  player: Player
 ): ScoreBreakdown => {
   const { capturedCards } = player;
 
@@ -65,8 +64,8 @@ export const calculateScore = (
 
 export const determineWinnerPoints = (p1: Player, p2: Player) => {
   // We no longer pass explicit scopa points, as they are part of the Player state now
-  const s1 = calculateScore(p1, 0); // Second arg ignored or remove from sig
-  const s2 = calculateScore(p2, 0);
+  const s1 = calculateScore(p1); // Second arg ignored or remove from sig
+  const s2 = calculateScore(p2);
 
   return {
     p1: { ...s1, grandTotal: s1.total },

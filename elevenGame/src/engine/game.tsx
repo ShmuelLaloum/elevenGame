@@ -1,5 +1,4 @@
 import type { GameState, Card, Player } from "../types";
-import { getValidCaptures } from "./rules";
 import { shuffleDeck, createDeck } from "../utils/deck";
 import { determineWinnerPoints } from "./scoring";
 
@@ -92,7 +91,6 @@ export class GameEngine {
     const allHandsEmpty = nextPlayers.every((p) => p.hand.length === 0);
     let nextPhase = state.phase;
     let nextDeck = state.deck;
-    let nextRound = state.round;
 
     if (allHandsEmpty) {
       if (nextDeck.length > 0) {
@@ -135,8 +133,7 @@ export class GameEngine {
 
         // Scopa Bonus Calculation
         // Now calculated within each player's structure via roundScopas
-        const p1ScopaBonus = 0; // Handled internally now
-        const p2ScopaBonus = 0; // Handled internally now
+      
 
         // Calculate breakdown
         const results = determineWinnerPoints(p1, p2);

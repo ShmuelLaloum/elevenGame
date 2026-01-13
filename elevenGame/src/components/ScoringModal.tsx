@@ -59,7 +59,6 @@ const AnimatedNumber = ({ value }: { value: number }) => {
 export const ScoringModal = ({
   isOpen,
   players,
-  activeScopaPlayerIndex,
   onNextRound,
   onRestart,
   onExit,
@@ -103,12 +102,11 @@ export const ScoringModal = ({
         </div>
 
         <div className="p-8 grid md:grid-cols-2 gap-8">
-          {players.map((p, idx) => {
+          {players.map((p) => {
             // We need to calculate THIS ROUND's breakdown.
             // But 'p.score' is the Total Score.
             // We can recalculate the breakdown for display.
-            const scopaPoints = activeScopaPlayerIndex === idx ? 5 : 0;
-            const breakdown = calculateScore(p, scopaPoints);
+            const breakdown = calculateScore(p);
             const isWinner = p.id === winner?.id;
 
             return (
