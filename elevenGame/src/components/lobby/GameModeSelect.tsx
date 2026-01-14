@@ -26,12 +26,12 @@ const gameModeCategories = [
   {
     id: "computer" as GameModeCategory,
     title: "VS Computer",
-    description: "Challenge our AI opponent",
+    description: "Challenge our AI opponents",
     icon: Bot,
     gradient: "from-blue-500 to-indigo-600",
     shadowColor: "shadow-blue-500/30",
     available: true,
-    teamSizes: ["1v1"] as TeamSize[], // Only 1v1 for computer
+    teamSizes: ["1v1", "2v2"] as TeamSize[],
   },
   {
     id: "friends" as GameModeCategory,
@@ -117,7 +117,7 @@ export const GameModeSelect = ({
 
           {/* Modal */}
           <motion.div
-            className="relative w-full max-w-3xl bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+            className="modal-scale-wrapper relative w-full max-w-3xl bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}

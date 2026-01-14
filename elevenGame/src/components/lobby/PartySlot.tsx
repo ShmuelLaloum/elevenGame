@@ -37,7 +37,7 @@ export const PartySlot = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: slotIndex * 0.1, type: "spring", stiffness: 100 }}
       className={clsx(
-        "relative w-[200px] aspect-[3/4] rounded-2xl overflow-hidden",
+        "relative rounded-2xl overflow-hidden",
         "bg-gradient-to-br from-slate-800/80 to-slate-900/90",
         "border-2 backdrop-blur-md shadow-2xl",
         "transition-all duration-300",
@@ -47,6 +47,10 @@ export const PartySlot = ({
           ? "border-emerald-500/70 shadow-emerald-500/20"
           : "border-blue-500/50 shadow-blue-500/10"
       )}
+      style={{
+        width: "clamp(120px, 15vw, 200px)",
+        aspectRatio: "3 / 4",
+      }}
     >
       {/* Ready Pulse Ring */}
       {player?.isReady && !player.isBot && (
@@ -65,25 +69,12 @@ export const PartySlot = ({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          <motion.div
-            className="w-16 h-16 rounded-full bg-slate-700/50 border-2 border-dashed border-slate-600 flex items-center justify-center group-hover:border-blue-400 group-hover:bg-blue-500/10 transition-all"
-            whileHover={{ rotate: 90 }}
-            transition={{ duration: 0.3 }}
-          >
+          <div className="w-16 h-16 rounded-full bg-slate-700/50 border-2 border-dashed border-slate-600 flex items-center justify-center group-hover:border-blue-400 group-hover:bg-blue-500/10 transition-all">
             <UserPlus className="w-7 h-7 text-slate-500 group-hover:text-blue-400 transition-colors" />
-          </motion.div>
+          </div>
           <span className="text-slate-400 font-medium text-sm group-hover:text-blue-300 transition-colors">
             Invite Player
           </span>
-          <div className="absolute bottom-4 left-4 right-4">
-            <div className="h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-gradient-to-r from-blue-500/30 to-purple-500/30"
-                animate={{ x: ["-100%", "100%"] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              />
-            </div>
-          </div>
         </motion.button>
       ) : (
         /* Filled Slot */
