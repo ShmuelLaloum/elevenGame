@@ -1,13 +1,21 @@
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ScoringModal } from "./ScoringModal";
 import { CapturedCardsModal } from "./CapturedCardsModal";
 import { useGameStore } from "../store/gameStore";
 import { Hand } from "./Hand";
 import { Board } from "./Board";
-import { Button } from "./Button";
 import { getValidCaptures } from "../engine/rules";
 import { audio } from "../utils/audio";
-import { Menu as MenuIcon } from "lucide-react";
+import {
+  Menu as MenuIcon,
+  Sparkles,
+  Trophy,
+  RotateCcw,
+  LogOut,
+  X,
+  Play,
+} from "lucide-react";
 
 export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   const {
@@ -195,81 +203,190 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
 
   return (
     <div className="game-container">
+      {/* Animated Background - Same as Lobby */}
+      <div className="game-background">
+        <div className="game-background-image" />
+        <div className="game-background-overlay" />
+
+        {/* Floating Particles */}
+        {[...Array(15)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="game-particle"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              y: [0, -20, 0],
+              opacity: [0.2, 0.5, 0.2],
+            }}
+            transition={{
+              duration: 4 + Math.random() * 2,
+              repeat: Infinity,
+              delay: Math.random() * 2,
+            }}
+          />
+        ))}
+      </div>
+
       {/* Scalable Game Wrapper */}
       <div className="game-scale-wrapper">
-        {/* Top Bar / Bot Info */}
-        <div className="game-top-bar">
+        {/* Top Bar / Opponent Info */}
+        <motion.div
+          className="game-top-bar"
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
           <div className="game-player-info">
-            <div className="game-player-avatar bg-red-600">B</div>
+            <motion.div
+              className="game-player-avatar-wrapper"
+              whileHover={{ scale: 1.05 }}
+            >
+              <div className="game-player-avatar game-player-avatar-opponent">
+                🤖
+              </div>
+              {!isMyTurn && phase === "playing" && (
+                <motion.div
+                  className="game-thinking-indicator"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                />
+              )}
+            </motion.div>
             <div>
-              <h3 className="game-player-name">Bot Opponent</h3>
-              <p className="game-player-stats">
-                Cards: {botPlayer?.hand.length} | Captures:{" "}
-                {botPlayer?.capturedCards.length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Top Bar / Menu */}
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-4">
-          <div className="game-score-display">
-            <div className="flex items-center gap-2">
-              <span className="text-yellow-400 text-xs uppercase tracking-wider font-bold">
-                Bonus
-              </span>
-              <div className="bg-yellow-500/20 px-2 py-0.5 rounded text-yellow-300 font-mono text-sm">
-                {humanPlayer?.roundScopas || 0}
+              <h3 className="game-player-name">
+                {botPlayer?.name || "Bot Opponent"}
+              </h3>
+              <div className="game-player-stats-row">
+                <span className="game-stat">
+                  <span className="game-stat-icon">🃏</span>
+                  {botPlayer?.hand.length || 0}
+                </span>
+                <span className="game-stat">
+                  <span className="game-stat-icon">📦</span>
+                  {botPlayer?.capturedCards.length || 0}
+                </span>
               </div>
             </div>
-            <div className="w-px h-4 bg-slate-700"></div>
-            <span className="game-score-label">Score</span>
-            <span className="game-score-value">{humanPlayer?.score || 0}</span>
           </div>
-          <button onClick={() => setIsMenuOpen(true)} className="game-menu-btn">
-            <MenuIcon />
-          </button>
-        </div>
+
+          {/* Right side - Score & Menu */}
+          <div className="flex items-center gap-3">
+            {/* Bonus Counter */}
+            <motion.div
+              className="game-bonus-display"
+              whileHover={{ scale: 1.05 }}
+            >
+              <Sparkles size={14} className="text-yellow-400" />
+              <span className="game-bonus-value">
+                {humanPlayer?.roundScopas || 0}
+              </span>
+            </motion.div>
+
+            {/* Score Display */}
+            <motion.div
+              className="game-score-badge"
+              whileHover={{ scale: 1.05 }}
+            >
+              <Trophy size={14} className="text-blue-400" />
+              <span className="game-score-number">
+                {humanPlayer?.score || 0}
+              </span>
+            </motion.div>
+
+            {/* Menu Button */}
+            <motion.button
+              onClick={() => setIsMenuOpen(true)}
+              className="game-menu-btn"
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <MenuIcon size={20} />
+            </motion.button>
+          </div>
+        </motion.div>
 
         {/* Menu Modal */}
-        {isMenuOpen && (
-          <div className="game-menu-modal">
-            <div className="game-menu-content modal-scale-wrapper">
-              <h2 className="game-menu-title">Game Menu</h2>
-              <div className="space-y-4">
-                <Button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    restartMatch();
-                  }}
-                  className="w-full"
-                >
-                  Restart Game
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onExit?.();
-                  }}
-                  className="w-full"
-                >
-                  Quit to Main Menu
-                </Button>
-                <Button
-                  variant="ghost"
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              className="game-menu-modal"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="game-menu-content"
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+              >
+                {/* Close Button */}
+                <motion.button
                   onClick={() => setIsMenuOpen(false)}
-                  className="w-full"
+                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-400 hover:bg-slate-600 hover:text-white transition-all"
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
                 >
-                  Resume
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+                  <X size={18} />
+                </motion.button>
+
+                <h2 className="game-menu-title">
+                  <Sparkles className="text-yellow-400" size={24} />
+                  Game Menu
+                </h2>
+
+                <div className="space-y-3 mt-6">
+                  <motion.button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      restartMatch();
+                    }}
+                    className="game-menu-option game-menu-option-primary"
+                    whileHover={{ scale: 1.02, x: 5 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <RotateCcw size={20} />
+                    Restart Game
+                  </motion.button>
+
+                  <motion.button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onExit?.();
+                    }}
+                    className="game-menu-option game-menu-option-danger"
+                    whileHover={{ scale: 1.02, x: 5 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <LogOut size={20} />
+                    Quit to Lobby
+                  </motion.button>
+
+                  <motion.button
+                    onClick={() => setIsMenuOpen(false)}
+                    className="game-menu-option game-menu-option-secondary"
+                    whileHover={{ scale: 1.02, x: 5 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Play size={20} />
+                    Resume Game
+                  </motion.button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Opponent Hand (Top) */}
-        <div className="game-opponent-hand">
+        <motion.div
+          className="game-opponent-hand"
+          initial={{ y: -100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
           {botPlayer && (
             <Hand
               cards={isFirstDeal && dealPhase === "init" ? [] : botPlayer.hand}
@@ -277,10 +394,15 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
               baseDelay={isFirstDeal ? delay_p2 : 0}
             />
           )}
-        </div>
+        </motion.div>
 
         {/* Board (Center) */}
-        <div className="game-board-area">
+        <motion.div
+          className="game-board-area"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.4, type: "spring" }}
+        >
           <Board
             cards={
               !initialBoardAnimationDone && isDealing && dealPhase !== "board"
@@ -292,33 +414,68 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
             baseDelay={delay_board}
             disableAnimation={!isDealing}
           />
-        </div>
+        </motion.div>
 
         {/* Player Hand (Bottom) */}
-        <div className="game-player-hand">
+        <motion.div
+          className="game-player-hand"
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
           {selectedHandCardId && isMyTurn && (
-            <button
+            <motion.button
               onClick={clearSelection}
-              className="text-slate-400 text-sm hover:text-white underline"
+              className="game-cancel-btn"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
+              <X size={14} />
               Cancel Selection
-            </button>
+            </motion.button>
           )}
 
           {humanPlayer && (
             <div className="relative flex flex-col items-center gap-4 w-full px-4">
+              {/* Player Info Bar */}
+              <motion.div
+                className="game-player-bar"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+              >
+                <div className="game-player-avatar-wrapper">
+                  <div className="game-player-avatar game-player-avatar-self">
+                    {humanPlayer.name.charAt(0).toUpperCase()}
+                  </div>
+                  {isMyTurn && phase === "playing" && (
+                    <motion.div
+                      className="game-turn-ring"
+                      animate={{ scale: [1, 1.1, 1], opacity: [1, 0.5, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  )}
+                </div>
+                <span className="game-player-bar-name">{humanPlayer.name}</span>
+                {isMyTurn && phase === "playing" && (
+                  <span className="game-your-turn-badge">Your Turn</span>
+                )}
+              </motion.div>
+
               {/* Captured Cards Button */}
-              <div className="absolute right-4 bottom-32 z-30">
-                <button
-                  className="game-captured-btn"
-                  onClick={() => setShowCaptured(true)}
-                >
-                  <span className="game-captured-count">
-                    {humanPlayer.capturedCards.length}
-                  </span>
-                  <span className="game-captured-label">Captured</span>
-                </button>
-              </div>
+              <motion.button
+                className="game-captured-btn"
+                onClick={() => setShowCaptured(true)}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <span className="game-captured-count">
+                  {humanPlayer.capturedCards.length}
+                </span>
+                <span className="game-captured-label">Captured</span>
+              </motion.button>
 
               <Hand
                 cards={
@@ -331,17 +488,32 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
               />
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* Current Turn Indicator */}
-        {!isMyTurn && phase === "playing" && (
-          <div className="game-turn-indicator">
-            <div className="game-turn-toast animate-pulse">
-              <div className="game-turn-dot" />
-              <span>Bot is thinking...</span>
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {!isMyTurn && phase === "playing" && (
+            <motion.div
+              className="game-turn-indicator"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <motion.div
+                className="game-turn-toast"
+                animate={{ scale: [1, 1.02, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <motion.div
+                  className="game-turn-dot"
+                  animate={{ scale: [1, 1.3, 1] }}
+                  transition={{ duration: 0.6, repeat: Infinity }}
+                />
+                <span>Bot is thinking...</span>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Scoring Modal Overlay */}
@@ -361,32 +533,40 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       />
 
       {/* Bonus Notification Overlay */}
-      {bonusNotif && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none perspective-[1000px]">
-          <div
-            className="animate-[float_3s_ease-in-out_forwards] transform-style-3d bg-gradient-to-br from-yellow-400 to-amber-600 text-white px-12 py-6 rounded-3xl border-4 border-yellow-200 shadow-[0_20px_50px_rgba(234,179,8,0.5)] flex flex-col items-center"
-            style={{
-              backfaceVisibility: "hidden",
-              animation:
-                "floatUpsurge 3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards",
-            }}
+      <AnimatePresence>
+        {bonusNotif && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            <div className="text-6xl mb-2">🌟</div>
-            <h1 className="text-6xl font-black tracking-tighter drop-shadow-md outline-4 outline-black">
-              {bonusNotif}
-            </h1>
-          </div>
-          <style>{`
-            @keyframes floatUpsurge {
-                0% { opacity: 0; transform: translateY(100px) rotateX(20deg) scale(0.5); }
-                20% { opacity: 1; transform: translateY(0) rotateX(0deg) scale(1.2); }
-                40% { transform: translateY(-20px) rotateX(-10deg) scale(1); }
-                80% { opacity: 1; transform: translateY(-40px) scale(1); }
-                100% { opacity: 0; transform: translateY(-100px) scale(0.8); }
-            }
-          `}</style>
-        </div>
-      )}
+            <motion.div
+              className="bonus-notification"
+              initial={{ scale: 0, rotate: -20 }}
+              animate={{ scale: 1, rotate: 0 }}
+              exit={{ scale: 0, y: -100, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+            >
+              <motion.div
+                className="bonus-star"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              >
+                ⭐
+              </motion.div>
+              <h1 className="bonus-text">{bonusNotif}</h1>
+              <motion.div
+                className="bonus-star"
+                animate={{ rotate: -360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              >
+                ⭐
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <CapturedCardsModal
         isOpen={showCaptured}
