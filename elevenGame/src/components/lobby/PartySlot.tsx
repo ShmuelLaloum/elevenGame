@@ -2,7 +2,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Crown,
   UserPlus,
-  Check,
   Bot,
   ArrowLeftRight,
   UserMinus,
@@ -185,7 +184,7 @@ export const PartySlot = ({
               )}
             </motion.div>
 
-            {/* Player Menu Button (for leader actions) */}
+            {/* Player Menu Button (for leader actions) - Always visible */}
             {!isLocalPlayer &&
               !player.isBot &&
               (onKick || onTransferLeadership) && (
@@ -194,22 +193,22 @@ export const PartySlot = ({
                     e.stopPropagation();
                     setShowMenu(!showMenu);
                   }}
-                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-slate-700/80 border border-slate-600 flex items-center justify-center text-slate-400 hover:bg-slate-600 hover:text-white transition-all z-20"
+                  className="absolute top-1 right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-700/90 border border-slate-600 flex items-center justify-center text-slate-400 hover:bg-slate-600 hover:text-white transition-all z-20"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                 >
-                  <UserCog size={14} />
+                  <UserCog size={10} className="sm:w-3 sm:h-3" />
                 </motion.button>
               )}
 
-            {/* Player Actions Menu */}
+            {/* Player Actions Menu - Compact for all sizes */}
             <AnimatePresence>
               {showMenu && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                  initial={{ opacity: 0, scale: 0.8, y: -5 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.8, y: -10 }}
-                  className="absolute top-10 right-1 z-30 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden min-w-[140px]"
+                  exit={{ opacity: 0, scale: 0.8, y: -5 }}
+                  className="absolute top-6 sm:top-8 right-0 z-30 bg-slate-800 border border-slate-600 rounded-md shadow-xl overflow-hidden min-w-[70px] sm:min-w-[100px]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {onTransferLeadership && (
@@ -218,10 +217,10 @@ export const PartySlot = ({
                         onTransferLeadership();
                         setShowMenu(false);
                       }}
-                      className="w-full px-3 py-2 flex items-center gap-2 text-left text-sm text-slate-300 hover:bg-slate-700 hover:text-yellow-400 transition-colors"
+                      className="w-full px-1.5 sm:px-2 py-1 sm:py-1.5 flex items-center gap-1 text-left text-[10px] sm:text-xs text-slate-300 hover:bg-slate-700 hover:text-yellow-400 transition-colors"
                     >
-                      <Crown size={14} />
-                      Make Leader
+                      <Crown size={10} className="flex-shrink-0" />
+                      <span>Leader</span>
                     </button>
                   )}
                   {onKick && (
@@ -230,10 +229,10 @@ export const PartySlot = ({
                         onKick();
                         setShowMenu(false);
                       }}
-                      className="w-full px-3 py-2 flex items-center gap-2 text-left text-sm text-slate-300 hover:bg-red-500/20 hover:text-red-400 transition-colors"
+                      className="w-full px-1.5 sm:px-2 py-1 sm:py-1.5 flex items-center gap-1 text-left text-[10px] sm:text-xs text-slate-300 hover:bg-red-500/20 hover:text-red-400 transition-colors"
                     >
-                      <UserMinus size={14} />
-                      Kick Player
+                      <UserMinus size={10} className="flex-shrink-0" />
+                      <span>Kick</span>
                     </button>
                   )}
                 </motion.div>
@@ -252,59 +251,54 @@ export const PartySlot = ({
             )}
           </div>
 
-          {/* Info Section */}
-          <div className="p-3 bg-slate-900/50 border-t border-slate-700/50">
-            <h3 className="text-base font-bold text-white text-center truncate mb-2">
+          {/* Info Section - Height and visibility managed in index.css */}
+          <div className="bg-slate-900/50 border-t border-slate-700/50">
+            {/* Name - Guaranteed visibility via CSS fixed height */}
+            <h3 className="text-xs sm:text-base font-bold text-white text-center truncate mb-0.5">
               {player.name}
               {isLeader && <span className="text-yellow-400 ml-1">★</span>}
             </h3>
 
-            {/* Ready Status / Toggle */}
-            {player.isBot ? (
-              <div className="w-full py-1.5 rounded-lg bg-slate-700/50 text-slate-400 text-center text-sm font-medium">
-                AI Opponent
-              </div>
-            ) : showReadyButton ? (
-              isLocalPlayer ? (
-                <motion.button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleReady?.();
-                  }}
-                  className={clsx(
-                    "w-full py-1.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all",
-                    player.isReady
-                      ? "bg-emerald-500 text-white"
-                      : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-                  )}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  {player.isReady ? (
-                    <>
-                      <Check size={16} /> Ready!
-                    </>
-                  ) : (
-                    "Not Ready"
-                  )}
-                </motion.button>
-              ) : (
-                <div
-                  className={clsx(
-                    "w-full py-1.5 rounded-lg text-center text-sm font-medium",
-                    player.isReady
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : "bg-slate-700/50 text-slate-400"
-                  )}
-                >
-                  {player.isReady ? "Ready" : "Not Ready"}
+            {/* Status Section - Visibility managed by CSS (overflow: hidden or height) */}
+            <div className="w-full">
+              {player.isBot ? (
+                <div className="w-full py-0.5 rounded bg-slate-700/50 text-slate-400 text-center text-[10px] sm:text-xs truncate">
+                  AI
                 </div>
-              )
-            ) : (
-              <div className="w-full py-1.5 rounded-lg bg-blue-500/20 text-blue-400 text-center text-sm font-medium">
-                Player
-              </div>
-            )}
+              ) : showReadyButton ? (
+                isLocalPlayer ? (
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleReady?.();
+                    }}
+                    className={clsx(
+                      "w-full py-0.5 rounded font-semibold text-[10px] sm:text-xs flex items-center justify-center gap-1 transition-all",
+                      player.isReady
+                        ? "bg-emerald-500 text-white"
+                        : "bg-slate-700 text-slate-300"
+                    )}
+                  >
+                    {player.isReady ? "Ready" : "Not Ready"}
+                  </motion.button>
+                ) : (
+                  <div
+                    className={clsx(
+                      "w-full py-0.5 rounded text-center text-[10px] sm:text-xs font-medium truncate",
+                      player.isReady
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : "bg-slate-700/50 text-slate-400"
+                    )}
+                  >
+                    {player.isReady ? "Ready" : "Wait"}
+                  </div>
+                )
+              ) : (
+                <div className="w-full py-0.5 rounded bg-blue-500/20 text-blue-400 text-center text-[10px] sm:text-xs truncate">
+                  Player
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

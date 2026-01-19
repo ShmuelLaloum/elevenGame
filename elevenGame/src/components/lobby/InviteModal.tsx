@@ -104,7 +104,10 @@ export const InviteModal = ({
             </div>
 
             {/* Friends List */}
-            <div className="px-4 pb-4 max-h-64 overflow-y-auto custom-scrollbar">
+            <div
+              className="px-4 pb-4 max-h-64 overflow-y-auto overflow-x-hidden"
+              style={{ overscrollBehavior: "contain" }}
+            >
               {filteredFriends.length > 0 ? (
                 <div className="space-y-2">
                   {filteredFriends.map((friend, index) => (
@@ -137,12 +140,14 @@ export const InviteModal = ({
                           </p>
                         </div>
                       </div>
+                      {/* Invite button - always visible on hover */}
                       <motion.button
                         onClick={() => onInvite(friend.name)}
-                        className="px-4 py-2 rounded-lg bg-blue-500/20 text-blue-400 font-medium opacity-0 group-hover:opacity-100 hover:bg-blue-500 hover:text-white transition-all flex items-center gap-2"
+                        className="px-4 py-2 rounded-lg bg-blue-500/20 text-blue-400 font-medium opacity-0 group-hover:opacity-100 hover:bg-blue-500 hover:text-white transition-all flex items-center gap-2 sm:opacity-100"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         disabled={friend.status === "offline"}
+                        style={{ pointerEvents: "auto" }}
                       >
                         <UserPlus size={16} />
                         Invite

@@ -42,8 +42,10 @@ const gameModeCategories = [
     shadowColor: "shadow-blue-500/30",
     available: true,
     teamSizes: ["1v1", "2v2"] as TeamSize[],
-    maxPlayersPerTeamSize: { "1v1": 2, "2v2": 4 }, // All bots fill, so any count works
-    allowsAnyPartySize: true, // Computer mode fills with bots
+    // VS Computer: party players go to team 1, bots fill team 2
+    // 1v1 = max 1 party player (just you), 2v2 = max 2 party players (you + 1 friend)
+    maxPlayersPerTeamSize: { "1v1": 1, "2v2": 2 },
+    allowsAnyPartySize: false, // Computer mode now respects party size
   },
   {
     id: "friends" as GameModeCategory,
@@ -293,36 +295,40 @@ export const GameModeSelect = ({
                       </div>
                     )}
 
-                    {/* Selected Check */}
-                    {isSelected && isAvailable && (
-                      <motion.div
-                        className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white/20 flex items-center justify-center"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                      >
-                        <Check size={14} className="text-white" />
-                      </motion.div>
-                    )}
-
-                    {/* Team Size Badges */}
-                    <div className="absolute top-3 right-12 flex gap-1">
-                      {mode.teamSizes.map((size) => {
-                        const sizeAvailable = isModeAvailable(mode.id, size);
-                        return (
-                          <span
-                            key={size}
-                            className={clsx(
-                              "px-2 py-0.5 rounded text-xs font-medium",
-                              !sizeAvailable && "line-through opacity-50",
-                              isSelected && sizeAvailable
-                                ? "bg-white/20 text-white"
-                                : "bg-slate-700/50 text-slate-400"
-                            )}
-                          >
-                            {size}
-                          </span>
-                        );
-                      })}
+                    {/* Selected Check & Team Size Badges - Stacked vertically on mobile */}
+                    <div className="absolute top-2 sm:top-3 right-2 sm:right-3 flex flex-col items-end gap-1">
+                      {isSelected && isAvailable && (
+                        <motion.div
+                          className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/20 flex items-center justify-center"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                        >
+                          <Check
+                            size={12}
+                            className="sm:w-3.5 sm:h-3.5 text-white"
+                          />
+                        </motion.div>
+                      )}
+                      {/* Team Size Badges - Below check on mobile */}
+                      <div className="flex gap-0.5 sm:gap-1">
+                        {mode.teamSizes.map((size) => {
+                          const sizeAvailable = isModeAvailable(mode.id, size);
+                          return (
+                            <span
+                              key={size}
+                              className={clsx(
+                                "px-1 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium",
+                                !sizeAvailable && "line-through opacity-50",
+                                isSelected && sizeAvailable
+                                  ? "bg-white/20 text-white"
+                                  : "bg-slate-700/50 text-slate-400"
+                              )}
+                            >
+                              {size}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {/* Icon */}
@@ -366,12 +372,20 @@ export const GameModeSelect = ({
             {/* Team Size Selection */}
             {availableTeamSizes.length > 1 && (
               <div className="px-4 pb-3">
-                <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Swords className="text-slate-400" size={16} />
-                    <span className="text-slate-300 font-medium text-sm">
-                      Team Size
-                    </span>
+                <div className="p-2 sm:p-3 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Swords className="text-slate-400 w-4 h-4" />
+                      <span className="text-slate-300 font-medium text-xs sm:text-sm">
+                        Team Size
+                      </span>
+                    </div>
+                    {/* Unavailable message shown inline */}
+                    {validTeamSizes.length < availableTeamSizes.length && (
+                      <span className="text-[10px] sm:text-xs text-slate-500">
+                        ({currentPlayerCount} players)
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     {availableTeamSizes.map((size) => {
@@ -385,7 +399,7 @@ export const GameModeSelect = ({
                           onClick={() => handleTeamSizeSelect(size)}
                           disabled={!sizeAvailable}
                           className={clsx(
-                            "flex-1 py-2 rounded-lg font-bold text-base transition-all relative",
+                            "flex-1 py-1.5 sm:py-2 rounded-lg font-bold text-sm sm:text-base transition-all relative",
                             !sizeAvailable && "cursor-not-allowed opacity-50",
                             selectedTeamSize === size && sizeAvailable
                               ? `bg-gradient-to-r ${selectedModeData?.gradient} text-white shadow-lg`
@@ -397,21 +411,14 @@ export const GameModeSelect = ({
                           {size}
                           {!sizeAvailable && (
                             <Lock
-                              size={12}
-                              className="absolute right-2 top-1/2 -translate-y-1/2"
+                              size={10}
+                              className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2"
                             />
                           )}
                         </motion.button>
                       );
                     })}
                   </div>
-                  {/* Show why sizes are blocked */}
-                  {validTeamSizes.length < availableTeamSizes.length && (
-                    <p className="text-xs text-slate-500 mt-2 text-center">
-                      Some sizes unavailable due to party size (
-                      {currentPlayerCount} players)
-                    </p>
-                  )}
                 </div>
               </div>
             )}
