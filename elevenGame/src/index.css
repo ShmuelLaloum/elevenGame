@@ -1073,11 +1073,11 @@
 
 /* Base lobby actions */
 .lobby-actions {
-  padding-bottom: 10px;
+  padding-bottom: 150px; /* Lifted much higher on the screen */
 }
 
 .lobby-tip {
-  margin-top: 0 !important;
+  margin-top: -140px !important; /* Kept very close to the button while moving up */
 }
 
 /* ===== GAME MOBILE IMPROVEMENTS ===== */
