@@ -679,7 +679,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
 
           {/* Action Buttons - Now with Ready Button */}
           {/* BOTTOM SECTION: Actions & Tip */}
-          <div className="flex flex-col items-center w-full shrink-0 pb-8 sm:pb-12">
+          <div className="flex flex-col items-center w-full shrink-0">
             <motion.div
               className="lobby-actions"
               initial={{ opacity: 0, y: 20 }}

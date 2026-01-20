@@ -55,7 +55,6 @@
 .lobby-container {
   width: 100vw;
   height: 100dvh;
-  height: calc(var(--vh, 1vh) * 100);
   overflow: hidden;
   position: fixed;
   inset: 0;
@@ -116,7 +115,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 2vh 2vw;
+  padding: 2vh 2vw 15vh; /* Large bottom padding to lift the actions section naturally */
+  box-sizing: border-box;
 }
 
 /* ===== LOBBY HEADER - VIEWPORT SIZED ===== */
@@ -339,7 +339,6 @@
 .game-container {
   width: 100vw;
   height: 100dvh;
-  height: calc(var(--vh, 1vh) * 100);
   overflow: hidden;
   position: fixed;
   inset: 0;
@@ -1055,7 +1054,9 @@
   justify-content: center;
   width: 100%;
   min-height: 0;
-  max-height: calc(100vh - 280px); /* Bounds to prevent overlap */
+  max-height: calc(
+    100dvh - 350px
+  ); /* Increased buffer to ensure bottom section visibility */
   padding: 10px 0;
   overflow: visible;
   /* Equal distance between mode button (top) and actions (bottom) */
@@ -1073,11 +1074,12 @@
 
 /* Base lobby actions */
 .lobby-actions {
-  padding-bottom: 150px; /* Lifted much higher on the screen */
+  padding-bottom: 0px;
 }
 
 .lobby-tip {
-  margin-top: -140px !important; /* Kept very close to the button while moving up */
+  margin-top: 8px !important;
+  line-height: 1.2;
 }
 
 /* ===== GAME MOBILE IMPROVEMENTS ===== */
