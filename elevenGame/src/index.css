@@ -54,7 +54,7 @@
 /* ===== LOBBY - FULL SCREEN ===== */
 .lobby-container {
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   height: calc(var(--vh, 1vh) * 100);
   overflow: hidden;
   position: fixed;
@@ -338,7 +338,7 @@
 /* ===== GAME CONTAINER - FULL SCREEN ===== */
 .game-container {
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   height: calc(var(--vh, 1vh) * 100);
   overflow: hidden;
   position: fixed;
