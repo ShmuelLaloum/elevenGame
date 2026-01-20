@@ -1,6 +1,12 @@
 import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { GameScreen } from "./components/GameScreen";
 import { PartyLobby } from "./components/lobby";
+import { Leaderboard } from "./components/pages/Leaderboard";
+import { Locker } from "./components/pages/Locker";
+import { Shop } from "./components/pages/Shop";
+import { Diamonds } from "./components/pages/Diamonds";
+import { Navbar } from "./components/navigation/Navbar";
 import { useGameStore } from "./store/gameStore";
 
 function App() {
@@ -37,14 +43,29 @@ function App() {
     setHasStarted(true);
   };
 
-  if (!hasStarted) {
-    return <PartyLobby onStartGame={handleStart} />;
+  if (hasStarted) {
+    return <GameScreen onExit={() => setHasStarted(false)} />;
   }
 
   return (
-    <>
-      <GameScreen onExit={() => setHasStarted(false)} />
-    </>
+    <BrowserRouter>
+      <div className="relative w-full h-full bg-slate-900 overflow-hidden">
+        <Navbar />
+        <main className="w-full h-full">
+          <Routes>
+            <Route
+              path="/"
+              element={<PartyLobby onStartGame={handleStart} />}
+            />
+            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/locker" element={<Locker />} />
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/diamonds" element={<Diamonds />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </BrowserRouter>
   );
 }
 
