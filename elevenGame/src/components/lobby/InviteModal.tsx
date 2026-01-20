@@ -62,8 +62,8 @@ export const InviteModal = ({
             className="modal-scale-wrapper relative w-full max-w-md bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden"
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            transition={{ type: "spring", damping: 25 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.15 }}
           >
             {/* Header */}
             <div className="relative p-6 pb-4 border-b border-slate-700/50">
@@ -110,12 +110,12 @@ export const InviteModal = ({
             >
               {filteredFriends.length > 0 ? (
                 <div className="space-y-2">
-                  {filteredFriends.map((friend, index) => (
+                  {filteredFriends.map((friend) => (
                     <motion.div
                       key={friend.id}
-                      initial={{ opacity: 0, x: -20 }}
+                      initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
+                      transition={{ delay: 0 }}
                       className="flex items-center justify-between p-3 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 transition-colors group"
                     >
                       <div className="flex items-center gap-3">
@@ -140,10 +140,9 @@ export const InviteModal = ({
                           </p>
                         </div>
                       </div>
-                      {/* Invite button - always visible on hover */}
                       <motion.button
                         onClick={() => onInvite(friend.name)}
-                        className="px-4 py-2 rounded-lg bg-blue-500/20 text-blue-400 font-medium opacity-0 group-hover:opacity-100 hover:bg-blue-500 hover:text-white transition-all flex items-center gap-2 sm:opacity-100"
+                        className="px-4 py-2 rounded-lg bg-blue-500/20 text-blue-400 font-medium hover:bg-blue-500 hover:text-white transition-all flex items-center gap-2"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         disabled={friend.status === "offline"}

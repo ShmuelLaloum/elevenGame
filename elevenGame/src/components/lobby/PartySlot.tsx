@@ -8,7 +8,7 @@ import {
   UserCog,
 } from "lucide-react";
 import clsx from "clsx";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface PartySlotPlayer {
   name: string;
@@ -47,6 +47,27 @@ export const PartySlot = ({
 }: PartySlotProps) => {
   const isEmpty = !player;
   const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    // Use a small delay for adding the listener to avoid the opening click from closing it
+    const timeout = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+    }, 10);
+
+    return () => {
+      clearTimeout(timeout);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showMenu]);
 
   const handleSlotClick = () => {
     if (onSwapClick && player) {
@@ -107,6 +128,7 @@ export const PartySlot = ({
             className="w-full h-full flex flex-col items-center justify-center gap-2 sm:gap-4 group cursor-pointer active:scale-95 transition-transform"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.1 }}
           >
             {/* Always visible invite circle */}
             <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-blue-500/20 border-2 border-blue-400/60 flex items-center justify-center transition-all group-hover:bg-blue-500/30 group-hover:border-blue-400 group-active:bg-blue-500/40">
@@ -134,10 +156,10 @@ export const PartySlot = ({
             {/* Leader Crown - Enhanced */}
             {isLeader && (
               <motion.div
-                className="absolute top-5 left-1/2 -translate-x-1/2 z-20"
-                initial={{ y: -20, opacity: 0, scale: 0 }}
+                className="absolute top-2 sm:top-5 left-1/2 -translate-x-1/2 z-20"
+                initial={{ y: -10, opacity: 0, scale: 0 }}
                 animate={{ y: 0, opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+                transition={{ delay: 0, type: "spring", stiffness: 200 }}
               >
                 <div className="relative">
                   <motion.div
@@ -145,9 +167,9 @@ export const PartySlot = ({
                     animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.8, 0.5] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   />
-                  <div className="relative bg-gradient-to-b from-yellow-300 to-amber-500 rounded-full p-1.5 shadow-lg border border-yellow-300/50">
+                  <div className="relative bg-gradient-to-b from-yellow-300 to-amber-500 rounded-full p-1 sm:p-1.5 shadow-lg border border-yellow-300/50">
                     <Crown
-                      className="w-5 h-5 text-yellow-900"
+                      className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-yellow-900"
                       fill="currentColor"
                     />
                   </div>
@@ -158,18 +180,19 @@ export const PartySlot = ({
             {/* Avatar */}
             <motion.div
               className={clsx(
-                "w-20 h-20 rounded-full overflow-hidden",
+                "w-14 h-14 sm:w-20 sm:h-20 rounded-full overflow-hidden",
                 player.isBot
                   ? "bg-gradient-to-br from-slate-600 to-slate-700"
                   : "bg-gradient-to-br from-blue-500 to-purple-600",
-                "border-3 shadow-xl",
+                "border-2 sm:border-3 shadow-xl",
                 player.isReady ? "border-emerald-400" : "border-slate-600"
               )}
               whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.1 }}
             >
               {player.isBot ? (
                 <div className="w-full h-full flex items-center justify-center">
-                  <Bot className="w-10 h-10 text-slate-300" />
+                  <Bot className="w-7 h-7 sm:w-10 sm:h-10 text-slate-300" />
                 </div>
               ) : player.avatarUrl ? (
                 <img
@@ -178,7 +201,7 @@ export const PartySlot = ({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-white">
+                <div className="w-full h-full flex items-center justify-center text-xl sm:text-3xl font-bold text-white">
                   {player.name.charAt(0).toUpperCase()}
                 </div>
               )}
@@ -196,6 +219,7 @@ export const PartySlot = ({
                   className="absolute top-1 right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-700/90 border border-slate-600 flex items-center justify-center text-slate-400 hover:bg-slate-600 hover:text-white transition-all z-20"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
+                  transition={{ duration: 0.1 }}
                 >
                   <UserCog size={10} className="sm:w-3 sm:h-3" />
                 </motion.button>
@@ -205,9 +229,11 @@ export const PartySlot = ({
             <AnimatePresence>
               {showMenu && (
                 <motion.div
+                  ref={menuRef}
                   initial={{ opacity: 0, scale: 0.8, y: -5 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.8, y: -5 }}
+                  transition={{ duration: 0.15 }}
                   className="absolute top-6 sm:top-8 right-0 z-30 bg-slate-800 border border-slate-600 rounded-md shadow-xl overflow-hidden min-w-[70px] sm:min-w-[100px]"
                   onClick={(e) => e.stopPropagation()}
                 >

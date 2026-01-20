@@ -343,13 +343,13 @@ export const MatchmakingScreen = ({
 
             {/* Cards Container */}
             <motion.div
-              className="flex items-center justify-center gap-3 sm:gap-6 md:gap-8 flex-wrap"
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 md:gap-8 w-full"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0 }}
             >
               {/* Your Team Cards */}
-              <div className="flex gap-2 sm:gap-3">
+              <div className="flex gap-2 sm:gap-3 justify-center order-1">
                 {teamPlayers.map((player, index) => (
                   <PlayerCard
                     key={`team-${index}`}
@@ -362,7 +362,7 @@ export const MatchmakingScreen = ({
               {/* VS Divider with pulse effect */}
               <motion.div
                 className={clsx(
-                  "w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-sm sm:text-lg font-black text-white relative",
+                  "w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-sm sm:text-lg font-black text-white relative flex-shrink-0 order-2",
                   `bg-gradient-to-br ${config.gradient}`
                 )}
                 style={{ boxShadow: `0 0 30px ${config.shadowColor}` }}
@@ -383,7 +383,7 @@ export const MatchmakingScreen = ({
               </motion.div>
 
               {/* Opponent Cards */}
-              <div className="flex gap-2 sm:gap-3">
+              <div className="flex gap-2 sm:gap-3 justify-center order-3">
                 {searchPhase === "searching"
                   ? [...Array(opponentCount)].map((_, index) => (
                       <PlayerCard key={`search-${index}`} isSearching={true} />

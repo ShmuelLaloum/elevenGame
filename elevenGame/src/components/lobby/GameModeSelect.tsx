@@ -208,8 +208,8 @@ export const GameModeSelect = ({
             className="modal-scale-wrapper relative w-full max-w-3xl bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden"
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            transition={{ type: "spring", damping: 25 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ duration: 0.15 }}
           >
             {/* Header Glow */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-32 bg-gradient-to-b from-blue-500/20 to-transparent blur-3xl pointer-events-none" />
@@ -245,7 +245,7 @@ export const GameModeSelect = ({
 
             {/* Mode Cards */}
             <div className="p-4 pt-2 grid grid-cols-2 gap-3">
-              {gameModeCategories.map((mode, index) => {
+              {gameModeCategories.map((mode) => {
                 const Icon = mode.icon;
                 const isSelected = selectedCategory === mode.id;
                 const isAvailable = isAnyTeamSizeAvailable(mode.id);
@@ -271,7 +271,7 @@ export const GameModeSelect = ({
                     )}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.08 }}
+                    transition={{ delay: 0 }}
                     whileHover={
                       mode.available && isAvailable
                         ? { scale: 1.02, y: -2 }

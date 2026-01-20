@@ -500,7 +500,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
             className="lobby-slots-container"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.05 }}
+            transition={{ delay: 0 }}
           >
             {isWorldMode ? (
               // World mode: Show only team 1 players
@@ -679,10 +679,10 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
 
           {/* Action Buttons - Now with Ready Button */}
           {/* BOTTOM SECTION: Actions & Tip */}
-          <div className="flex flex-col items-center w-full shrink-0">
+          <div className="flex flex-col items-center w-full shrink-0 pb-8 sm:pb-12">
             <motion.div
               className="lobby-actions"
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0 }}
             >
