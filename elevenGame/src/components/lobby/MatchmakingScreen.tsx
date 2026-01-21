@@ -199,7 +199,7 @@ export const MatchmakingScreen = ({
               : "bg-slate-900/50 border-slate-700/50"
           )}
         >
-          <h3 className="text-xs sm:text-sm font-bold text-white truncate">
+          <h3 className="text-[10px] sm:text-xs font-bold text-white line-clamp-2 leading-tight min-h-[2.4em] flex items-center justify-center">
             {isSearching ? "Searching..." : player?.name || "Unknown"}
           </h3>
           <div

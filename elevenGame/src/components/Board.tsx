@@ -9,6 +9,7 @@ interface BoardProps {
   onCardClick: (cardId: string) => void;
   baseDelay?: number;
   disableAnimation?: boolean;
+  className?: string;
 }
 
 export const Board = ({
@@ -17,11 +18,29 @@ export const Board = ({
   onCardClick,
   baseDelay = 0,
   disableAnimation = false,
+  className,
 }: BoardProps) => {
   const getLayoutConfig = (count: number) => {
-    if (count > 15) return { cols: "grid-cols-6", scale: 0.55, gap: "gap-1" };
-    if (count > 10) return { cols: "grid-cols-5", scale: 0.7, gap: "gap-1" }; // Reduced from gap-2
-    return { cols: "grid-cols-4", scale: 0.9, gap: "gap-2" }; // Reduced from gap-4
+    // Determine screen size category
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+    const isTablet =
+      typeof window !== "undefined" &&
+      window.innerWidth >= 640 &&
+      window.innerWidth < 1024;
+
+    let baseScale = 1.0;
+    if (isMobile) baseScale = 0.82;
+    else if (isTablet) baseScale = 0.92;
+
+    if (count > 15)
+      return { cols: "grid-cols-6", scale: baseScale * 0.6, gap: "gap-1" };
+    if (count > 10)
+      return { cols: "grid-cols-5", scale: baseScale * 0.75, gap: "gap-1" };
+    return {
+      cols: "grid-cols-4",
+      scale: baseScale * 1.0,
+      gap: "gap-1 sm:gap-2",
+    };
   };
 
   const { cols, scale, gap } = getLayoutConfig(cards.length);
@@ -29,7 +48,8 @@ export const Board = ({
   return (
     <div
       className={clsx(
-        "relative w-full max-w-4xl h-[450px] rounded-3xl border-[6px] border-emerald-900/40 bg-emerald-800/90 shadow-[inset_0_0_80px_rgba(0,0,0,0.5)] backdrop-blur-sm flex items-center justify-center p-6 transition-all duration-300"
+        "relative w-full max-w-4xl h-[280px] sm:h-[380px] lg:h-[480px] rounded-2xl sm:rounded-3xl border-[4px] sm:border-[6px] border-emerald-900/40 bg-emerald-800/90 shadow-[inset_0_0_40px_rgba(0,0,0,0.5)] sm:shadow-[inset_0_0_80px_rgba(0,0,0,0.5)] backdrop-blur-sm flex items-center justify-center p-2 sm:p-6 transition-all duration-300",
+        className
       )}
     >
       <div
@@ -59,12 +79,8 @@ export const Board = ({
               }}
               className="transition-all duration-300 flex justify-center items-center origin-center"
               style={{
-                // Ensure the div itself doesn't take up full space if scaled down,
-                // allowing grid to pack tighter visually if needed,
-                // though grid cell size is determined by cols.
                 width: "100%",
                 height: "100%",
-                maxHeight: "140px", // cap height
               }}
             >
               <div

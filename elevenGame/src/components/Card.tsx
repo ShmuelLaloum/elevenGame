@@ -69,12 +69,12 @@ export const Card = ({
         animate={{ scale: 1, y: 0, opacity: 1 }}
         exit={{ scale: 0, opacity: 0 }}
         className={clsx(
-          "relative w-24 h-36 bg-blue-800 rounded-xl shadow-xl border-2 border-blue-900 flex items-center justify-center overflow-hidden backface-hidden",
+          "relative w-14 h-20 sm:w-20 sm:h-28 lg:w-24 lg:h-36 bg-blue-800 rounded-lg sm:rounded-xl shadow-xl border-2 border-blue-900 flex items-center justify-center overflow-hidden backface-hidden",
           className
         )}
       >
-        <div className="absolute inset-2 border-2 border-blue-400/30 rounded-lg dashed opacity-50" />
-        <div className="w-12 h-12 bg-blue-600 rounded-full opacity-20" />
+        <div className="absolute inset-1 sm:inset-2 border-2 border-blue-400/30 rounded sm:rounded-lg dashed opacity-50" />
+        <div className="w-8 h-8 sm:w-12 sm:h-12 bg-blue-600 rounded-full opacity-20" />
       </motion.div>
     );
   }
@@ -90,9 +90,9 @@ export const Card = ({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       className={clsx(
-        "relative w-24 h-36 bg-white rounded-xl shadow-md border border-slate-200 cursor-pointer select-none flex flex-col justify-between p-2 transform-style-3d backface-hidden",
+        "relative w-14 h-20 sm:w-20 sm:h-28 lg:w-24 lg:h-36 bg-white rounded-lg sm:rounded-xl shadow-md border border-slate-200 cursor-pointer select-none flex flex-col justify-between p-1 sm:p-2 transform-style-3d backface-hidden",
         isSelected &&
-          "ring-4 ring-blue-500 ring-offset-2 ring-offset-slate-900",
+          "ring-2 sm:ring-4 ring-blue-500 ring-offset-1 sm:ring-offset-2 ring-offset-slate-900",
         className
       )}
       transition={{
@@ -102,10 +102,13 @@ export const Card = ({
     >
       {/* Top Left */}
       <div className={clsx("flex flex-col items-center", colorClass)}>
-        <span className="text-xl font-bold font-mono leading-none">
+        <span className="text-sm sm:text-lg lg:text-xl font-bold font-mono leading-none">
           {card.rank}
         </span>
-        <Icon size={16} fill="currentColor" />
+        <Icon
+          className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4"
+          fill="currentColor"
+        />
       </div>
 
       {/* Center Big Icon */}
@@ -115,17 +118,23 @@ export const Card = ({
           colorClass
         )}
       >
-        <Icon size={64} fill="currentColor" />
+        <Icon
+          className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16"
+          fill="currentColor"
+        />
       </div>
 
       {/* Bottom Right (Rotated) */}
       <div
         className={clsx("flex flex-col items-center rotate-180", colorClass)}
       >
-        <span className="text-xl font-bold font-mono leading-none">
+        <span className="text-sm sm:text-lg lg:text-xl font-bold font-mono leading-none">
           {card.rank}
         </span>
-        <Icon size={16} fill="currentColor" />
+        <Icon
+          className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4"
+          fill="currentColor"
+        />
       </div>
     </motion.div>
   );

@@ -55,7 +55,7 @@ export const Hand = ({
 }: HandProps) => {
   return (
     <div
-      className={`flex justify-center -space-x-8 min-h-[144px] ${className}`}
+      className={`flex justify-center -space-x-4 sm:-space-x-6 lg:-space-x-8 min-h-[80px] sm:min-h-[112px] lg:min-h-[144px] ${className}`}
     >
       <AnimatePresence>
         {cards.map((card, index) => (

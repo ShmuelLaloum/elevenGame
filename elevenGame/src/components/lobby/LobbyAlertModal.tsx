@@ -112,7 +112,7 @@ export const LobbyAlertModal = ({
                   <>
                     You need{" "}
                     <span className="text-white font-bold">
-                      1 Lightning Bolt
+                      Lightning Bolt
                     </span>{" "}
                     to play online. Claim your daily gift or watch an ad in the
                     shop to get more!

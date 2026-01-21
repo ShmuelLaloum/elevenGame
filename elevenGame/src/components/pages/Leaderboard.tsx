@@ -89,7 +89,7 @@ export const Leaderboard = () => {
                     <div className="flex-1 min-w-0">
                       <div
                         className={clsx(
-                          "font-bold text-base truncate",
+                          "font-bold text-sm sm:text-base leading-tight",
                           isMe ? "text-blue-400" : "text-white"
                         )}
                       >

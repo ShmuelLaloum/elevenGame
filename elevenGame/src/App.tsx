@@ -16,7 +16,11 @@ function App() {
   const initializeGame = useGameStore((state) => state.initializeGame);
   const isNavbarVisible = useUIStore((state) => state.isNavbarVisible);
 
-  const handleStart = (category: string, teamSize: string) => {
+  const handleStart = (
+    category: string,
+    teamSize: string,
+    opponentNames?: string[]
+  ) => {
     // Set up players based on category and team size
     let players: string[] = [];
 
@@ -42,7 +46,7 @@ function App() {
       }
     }
 
-    initializeGame(players);
+    initializeGame(players, category, opponentNames);
     setHasStarted(true);
   };
 

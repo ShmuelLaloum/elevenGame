@@ -619,11 +619,12 @@
 
 /* Game Hand Areas */
 .game-opponent-hand {
-  flex: 1;
+  flex: 0 1 auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   min-height: 0;
+  padding-top: 5px;
 }
 
 .game-player-hand {

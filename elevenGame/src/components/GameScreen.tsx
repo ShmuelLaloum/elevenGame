@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ScoringModal } from "./ScoringModal";
 import { CapturedCardsModal } from "./CapturedCardsModal";
 import { useGameStore } from "../store/gameStore";
+import { useUserStore } from "../store/userStore";
+import { useUIStore } from "../store/uiStore";
 import { Hand } from "./Hand";
 import { Board } from "./Board";
 import { getValidCaptures } from "../engine/rules";
@@ -34,7 +36,11 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     nextRound,
     lastBonusEvent,
     round,
+    category,
   } = useGameStore();
+
+  const { lightning } = useUserStore();
+  const { setShouldRestartMatchmaking, openAlertModal } = useUIStore();
 
   const humanPlayer = players[0];
   const botPlayer = players[1];
@@ -239,63 +245,53 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="game-player-info">
-            <motion.div
-              className="game-player-avatar-wrapper"
-              whileHover={{ scale: 1.05 }}
-            >
-              <div className="game-player-avatar game-player-avatar-opponent">
-                🤖
-              </div>
-              {!isMyTurn && phase === "playing" && (
-                <motion.div
-                  className="game-thinking-indicator"
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                />
-              )}
-            </motion.div>
-            <div>
-              <h3 className="game-player-name">
-                {botPlayer?.name || "Bot Opponent"}
+          <div className="flex items-start gap-2">
+            <div className="flex flex-col items-center max-w-[80px] sm:max-w-[120px]">
+              <motion.div
+                className="game-player-avatar-wrapper"
+                whileHover={{ scale: 1.05 }}
+              >
+                <div className="game-player-avatar game-player-avatar-opponent">
+                  {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
+                </div>
+                {!isMyTurn && phase === "playing" && (
+                  <motion.div
+                    className="game-thinking-indicator"
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  />
+                )}
+              </motion.div>
+              <h3 className="game-player-name mt-1 text-[10px] sm:text-xs font-bold w-full text-center break-words line-clamp-2 px-1">
+                {botPlayer?.name || "Opponent"}
               </h3>
-              <div className="game-player-stats-row">
-                <span className="game-stat">
-                  <span className="game-stat-icon">🃏</span>
-                  {botPlayer?.hand.length || 0}
+            </div>
+
+            <div className="flex flex-col gap-1 pt-2">
+              {/* Round Bonuses */}
+              <motion.div
+                className="flex items-center gap-1.5 px-2 py-1 bg-yellow-400/10 border border-yellow-400/30 rounded-lg"
+                whileHover={{ scale: 1.05 }}
+              >
+                <Sparkles size={10} className="text-yellow-400" />
+                <span className="text-xs font-bold text-yellow-400">
+                  {botPlayer?.roundScopas || 0}
                 </span>
-                <span className="game-stat">
-                  <span className="game-stat-icon">📦</span>
-                  {botPlayer?.capturedCards.length || 0}
+              </motion.div>
+              {/* Total Score */}
+              <motion.div
+                className="flex items-center gap-1.5 px-2 py-1 bg-blue-400/10 border border-blue-400/30 rounded-lg"
+                whileHover={{ scale: 1.05 }}
+              >
+                <Trophy size={10} className="text-blue-400" />
+                <span className="text-xs font-bold text-blue-400">
+                  {botPlayer?.score || 0}
                 </span>
-              </div>
+              </motion.div>
             </div>
           </div>
 
-          {/* Right side - Score & Menu */}
-          <div className="flex items-center gap-3">
-            {/* Bonus Counter */}
-            <motion.div
-              className="game-bonus-display"
-              whileHover={{ scale: 1.05 }}
-            >
-              <Sparkles size={14} className="text-yellow-400" />
-              <span className="game-bonus-value">
-                {humanPlayer?.roundScopas || 0}
-              </span>
-            </motion.div>
-
-            {/* Score Display */}
-            <motion.div
-              className="game-score-badge"
-              whileHover={{ scale: 1.05 }}
-            >
-              <Trophy size={14} className="text-blue-400" />
-              <span className="game-score-number">
-                {humanPlayer?.score || 0}
-              </span>
-            </motion.div>
-
+          <div className="flex items-center gap-3 self-start mt-2">
             {/* Menu Button */}
             <motion.button
               onClick={() => setIsMenuOpen(true)}
@@ -341,15 +337,34 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                 <div className="space-y-3 mt-6">
                   <motion.button
                     onClick={() => {
-                      setIsMenuOpen(false);
-                      restartMatch();
+                      const isOnline =
+                        category === "battleRoyale" || category === "arena";
+                      if (isOnline) {
+                        if (lightning < 1) {
+                          openAlertModal(
+                            "No Lightning",
+                            "You need lightning to start a new game!",
+                            "error"
+                          );
+                          return;
+                        }
+                        setShouldRestartMatchmaking(true);
+                        setIsMenuOpen(false);
+                        resetGame();
+                        onExit?.();
+                      } else {
+                        setIsMenuOpen(false);
+                        restartMatch();
+                      }
                     }}
                     className="game-menu-option game-menu-option-primary"
                     whileHover={{ scale: 1.02, x: 5 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <RotateCcw size={20} />
-                    Restart Game
+                    {category === "battleRoyale" || category === "arena"
+                      ? "Start New Game"
+                      : "Restart Game"}
                   </motion.button>
 
                   <motion.button
@@ -439,42 +454,63 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
 
           {humanPlayer && (
             <div className="relative flex flex-col items-center gap-4 w-full px-4">
-              {/* Player Info Bar */}
-              <motion.div
-                className="game-player-bar"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 }}
-              >
-                <div className="game-player-avatar-wrapper">
-                  <div className="game-player-avatar game-player-avatar-self">
-                    {humanPlayer.name.charAt(0).toUpperCase()}
-                  </div>
-                  {isMyTurn && phase === "playing" && (
-                    <motion.div
-                      className="game-turn-ring"
-                      animate={{ scale: [1, 1.1, 1], opacity: [1, 0.5, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                  )}
+              {/* Reset Section for Bottom User HUD - Now moved to the very bottom right corner */}
+              <div className="fixed right-3 sm:right-6 bottom-4 sm:bottom-6 flex items-end gap-1.5 sm:gap-2 z-[60]">
+                <div className="flex flex-col gap-1 pb-4">
+                  {/* Round Bonuses */}
+                  <motion.div
+                    className="flex items-center justify-end gap-1.5 px-2 py-1 bg-yellow-400/10 border border-yellow-400/30 rounded-lg shrink-0"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    <span className="text-[10px] sm:text-xs font-bold text-yellow-400">
+                      {humanPlayer?.roundScopas || 0}
+                    </span>
+                    <Sparkles size={10} className="text-yellow-400" />
+                  </motion.div>
+                  {/* Total Score */}
+                  <motion.div
+                    className="flex items-center justify-end gap-1.5 px-2 py-1 bg-blue-400/10 border border-blue-400/30 rounded-lg shrink-0"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    <span className="text-[10px] sm:text-xs font-bold text-blue-400">
+                      {humanPlayer?.score || 0}
+                    </span>
+                    <Trophy size={10} className="text-blue-400" />
+                  </motion.div>
                 </div>
-                <span className="game-player-bar-name">{humanPlayer.name}</span>
-                {isMyTurn && phase === "playing" && (
-                  <span className="game-your-turn-badge">Your Turn</span>
-                )}
-              </motion.div>
 
-              {/* Captured Cards Button */}
+                <div className="flex flex-col items-center max-w-[80px] sm:max-w-[120px]">
+                  <motion.div className="game-player-avatar-wrapper">
+                    <div className="game-player-avatar game-player-avatar-self">
+                      {humanPlayer.name.charAt(0).toUpperCase()}
+                    </div>
+                    {isMyTurn && phase === "playing" && (
+                      <motion.div
+                        className="game-turn-ring"
+                        animate={{ scale: [1, 1.1, 1], opacity: [1, 0.5, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      />
+                    )}
+                  </motion.div>
+                  <span className="game-player-name mt-1 text-[10px] sm:text-xs font-bold w-full text-center break-words line-clamp-2 px-1">
+                    {humanPlayer.name}
+                  </span>
+                </div>
+              </div>
+
+              {/* Captured Cards - Keep bottom left */}
               <motion.button
-                className="game-captured-btn"
+                className="fixed left-3 sm:left-6 bottom-4 sm:bottom-6 flex flex-col items-center px-3 py-1 bg-slate-800/80 border border-slate-700/50 rounded-xl z-[60]"
                 onClick={() => setShowCaptured(true)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <span className="game-captured-count">
+                <span className="text-sm font-bold text-white">
                   {humanPlayer.capturedCards.length}
                 </span>
-                <span className="game-captured-label">Captured</span>
+                <span className="text-[10px] text-slate-500 uppercase">
+                  Captured
+                </span>
               </motion.button>
 
               <Hand
@@ -523,7 +559,22 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
         activeScopaPlayerIndex={useGameStore((s) => s.activeScopaPlayerIndex)}
         onNextRound={nextRound}
         onRestart={() => {
-          restartMatch();
+          const isOnline = category === "battleRoyale" || category === "arena";
+          if (isOnline) {
+            if (lightning < 1) {
+              openAlertModal(
+                "No Lightning",
+                "You need lightning to start a new game!",
+                "error"
+              );
+              return;
+            }
+            setShouldRestartMatchmaking(true);
+            resetGame();
+            onExit?.();
+          } else {
+            restartMatch();
+          }
         }}
         onExit={() => {
           resetGame();

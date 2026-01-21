@@ -5,7 +5,7 @@ import { getBestMove } from '../engine/bot';
 
 interface GameStore extends GameState {
   // Actions
-  initializeGame: (playerNames: string[]) => void;
+  initializeGame: (playerNames: string[], category?: string, opponentNames?: string[]) => void;
   playCard: (handCardId: string, captureCardIds: string[]) => void;
   resetGame: () => void; // Go to Home
   restartMatch: () => void; // Restart with same players
@@ -30,7 +30,8 @@ const initialState: GameState = {
   phase: 'game_over', // Start in game over state to show home screen
   lastCapturingPlayerIndex: null,
   activeScopaPlayerIndex: null,
-  lastBonusEvent: undefined
+  lastBonusEvent: undefined,
+  category: undefined,
 };
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -39,9 +40,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
   selectedHandCardId: null,
   selectedBoardCardIds: [],
 
-  initializeGame: (playerNames) => {
+  initializeGame: (playerNames, category, opponentNames) => {
     const newState = GameEngine.initializeGame(playerNames);
-    set({ ...newState, selectedHandCardId: null, selectedBoardCardIds: [] });
+    
+    // If we have explicit opponent names, override the defaults
+    if (opponentNames && opponentNames.length > 0) {
+      newState.players = newState.players.map((p, i) => {
+        // Human is usually player 0, opponents are 1, 2, 3...
+        if (i > 0 && opponentNames[i - 1]) {
+          return { ...p, name: opponentNames[i - 1] };
+        }
+        return p;
+      });
+    }
+
+    set({ ...newState, category, selectedHandCardId: null, selectedBoardCardIds: [] });
   },
 
   playCard: (handCardId, captureCardIds) => {

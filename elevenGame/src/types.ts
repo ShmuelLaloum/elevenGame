@@ -29,6 +29,7 @@ export interface GameState {
   activePlayerIndex: number;
   round: number; // 1-6 (assuming 4 cards dealings)
   phase: 'dealing' | 'playing' | 'scoring' | 'game_over';
+  category?: string;
   lastCapturingPlayerIndex: number | null; // For assigning remaining cards at end
   activeScopaPlayerIndex: number | null; // Tracks who currently has the Scopa bonus (5 pts)
   lastBonusEvent?: { playerId: string; timestamp: number }; // Unique trigger for UI animations

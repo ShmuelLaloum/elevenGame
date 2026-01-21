@@ -16,7 +16,11 @@ import clsx from "clsx";
 import { Zap } from "lucide-react";
 
 interface PartyLobbyProps {
-  onStartGame: (mode: string, teamSize: string, category: string) => void;
+  onStartGame: (
+    category: string,
+    teamSize: string,
+    opponentNames?: string[]
+  ) => void;
 }
 
 interface PartyPlayer {
@@ -62,9 +66,37 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
   const [pendingModeConfig, setPendingModeConfig] =
     useState<GameModeConfig | null>(null);
   const [isProcessingStart, setIsProcessingStart] = useState(false);
-
   const [isSubtractingLightning, setIsSubtractingLightning] = useState(false);
-  const { setNavbarVisible } = useUIStore();
+
+  const {
+    setNavbarVisible,
+    shouldRestartMatchmaking,
+    setShouldRestartMatchmaking,
+  } = useUIStore();
+
+  // Immediate Matchmaking if requested from in-game menu
+  useEffect(() => {
+    if (shouldRestartMatchmaking) {
+      setShouldRestartMatchmaking(false);
+
+      const runDeductionAndStart = async () => {
+        if (lightning >= 1) {
+          setIsSubtractingLightning(true);
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+          spendLightning(1);
+          setIsSubtractingLightning(false);
+          setShowMatchmaking(true);
+        }
+      };
+
+      runDeductionAndStart();
+    }
+  }, [
+    shouldRestartMatchmaking,
+    setShouldRestartMatchmaking,
+    lightning,
+    spendLightning,
+  ]);
 
   // Hide Navbar when certain views are active
   useEffect(() => {
@@ -286,11 +318,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
 
         if (allOthersReady || humanPlayers.length === 1) {
           // Start game immediately - NO DELAY
-          onStartGame(
-            gameConfig.category,
-            gameConfig.teamSize,
-            gameConfig.category
-          );
+          onStartGame(gameConfig.category, gameConfig.teamSize);
         }
       }
     } else {
@@ -322,11 +350,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
         }
       } else if (gameConfig.category === "friends") {
         setIsProcessingStart(true);
-        onStartGame(
-          gameConfig.category,
-          gameConfig.teamSize,
-          gameConfig.category
-        );
+        onStartGame(gameConfig.category, gameConfig.teamSize);
       }
     };
 
@@ -343,10 +367,11 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
   ]);
 
   const handleMatchFound = (
-    _opponents: { name: string; avatarUrl?: string }[]
+    opponents: { name: string; avatarUrl?: string }[]
   ) => {
     setShowMatchmaking(false);
-    onStartGame(gameConfig.category, gameConfig.teamSize, gameConfig.category);
+    const opponentNames = opponents.map((o) => o.name);
+    onStartGame(gameConfig.category, gameConfig.teamSize, opponentNames);
   };
 
   const handleInvite = (username: string) => {

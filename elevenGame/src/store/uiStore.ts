@@ -3,6 +3,8 @@ import { create } from 'zustand';
 interface UIStore {
   isNavbarVisible: boolean;
   setNavbarVisible: (visible: boolean) => void;
+  shouldRestartMatchmaking: boolean;
+  setShouldRestartMatchmaking: (should: boolean) => void;
   
   purchaseModal: {
     isOpen: boolean;
@@ -25,6 +27,8 @@ interface UIStore {
 export const useUIStore = create<UIStore>((set) => ({
   isNavbarVisible: true,
   setNavbarVisible: (visible) => set({ isNavbarVisible: visible }),
+  shouldRestartMatchmaking: false,
+  setShouldRestartMatchmaking: (should) => set({ shouldRestartMatchmaking: should }),
   
   purchaseModal: {
     isOpen: false,
