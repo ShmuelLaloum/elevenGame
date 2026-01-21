@@ -7,11 +7,14 @@ import { Locker } from "./components/pages/Locker";
 import { Shop } from "./components/pages/Shop";
 import { Diamonds } from "./components/pages/Diamonds";
 import { Navbar } from "./components/navigation/Navbar";
+import { GlobalModals } from "./components/modals/GlobalModals";
 import { useGameStore } from "./store/gameStore";
+import { useUIStore } from "./store/uiStore";
 
 function App() {
   const [hasStarted, setHasStarted] = useState(false);
   const initializeGame = useGameStore((state) => state.initializeGame);
+  const isNavbarVisible = useUIStore((state) => state.isNavbarVisible);
 
   const handleStart = (category: string, teamSize: string) => {
     // Set up players based on category and team size
@@ -50,7 +53,8 @@ function App() {
   return (
     <BrowserRouter>
       <div className="relative w-full h-full bg-slate-900 overflow-hidden">
-        <Navbar />
+        {isNavbarVisible && <Navbar />}
+        <GlobalModals />
         <main className="w-full h-full">
           <Routes>
             <Route

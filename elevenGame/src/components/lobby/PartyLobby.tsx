@@ -1,14 +1,6 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState, useMemo, useCallback, useEffect } from "react";
-import {
-  Settings,
-  Sparkles,
-  Users,
-  Bot,
-  Globe,
-  Trophy,
-  Check,
-} from "lucide-react";
+import { Settings, Users, Bot, Globe, Trophy, Check } from "lucide-react";
 import { PartySlot } from "./PartySlot";
 import { InviteModal } from "./InviteModal";
 import {
@@ -17,8 +9,11 @@ import {
   type GameModeCategory,
 } from "./GameModeSelect";
 import { MatchmakingScreen } from "./MatchmakingScreen";
-import { TooManyPlayersModal } from "./TooManyPlayersModal";
+import { LobbyAlertModal } from "./LobbyAlertModal";
+import { useUserStore } from "../../store/userStore";
+import { useUIStore } from "../../store/uiStore";
 import clsx from "clsx";
+import { Zap } from "lucide-react";
 
 interface PartyLobbyProps {
   onStartGame: (mode: string, teamSize: string, category: string) => void;
@@ -36,14 +31,20 @@ interface PartyPlayer {
 }
 
 export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
-  const [gameConfig, setGameConfig] = useState<GameModeConfig>({
-    category: "computer",
-    teamSize: "1v1",
-  });
+  const { lightning, spendLightning, lastGameConfig, setLastGameConfig } =
+    useUserStore();
+
+  const [gameConfig, setGameConfig] = useState<GameModeConfig>(
+    (lastGameConfig as GameModeConfig) || {
+      category: "computer",
+      teamSize: "1v1",
+    }
+  );
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteForSlotIndex, setInviteForSlotIndex] = useState<number | null>(
     null
   );
+
   const [showModeSelect, setShowModeSelect] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [invitedPlayers, setInvitedPlayers] = useState<(PartyPlayer | null)[]>(
@@ -54,9 +55,38 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
     null
   );
   const [showMatchmaking, setShowMatchmaking] = useState(false);
-  const [showTooManyPlayersModal, setShowTooManyPlayersModal] = useState(false);
+  const [showAlertModal, setShowAlertModal] = useState<{
+    isOpen: boolean;
+    mode: "tooManyPlayers" | "noLightning";
+  }>({ isOpen: false, mode: "tooManyPlayers" });
   const [pendingModeConfig, setPendingModeConfig] =
     useState<GameModeConfig | null>(null);
+  const [isProcessingStart, setIsProcessingStart] = useState(false);
+
+  const [isSubtractingLightning, setIsSubtractingLightning] = useState(false);
+  const { setNavbarVisible } = useUIStore();
+
+  // Hide Navbar when certain views are active
+  useEffect(() => {
+    if (showModeSelect || showMatchmaking || isSubtractingLightning) {
+      setNavbarVisible(false);
+    } else {
+      setNavbarVisible(true);
+    }
+    return () => setNavbarVisible(true);
+  }, [
+    showModeSelect,
+    showMatchmaking,
+    isSubtractingLightning,
+    setNavbarVisible,
+  ]);
+
+  // Reset processing when ready state changes to false
+  useEffect(() => {
+    if (!isReady) {
+      setIsProcessingStart(false);
+    }
+  }, [isReady]);
 
   // Current user is the leader
   const isCurrentUserLeader = leaderId === "local";
@@ -66,6 +96,11 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
     const invitedHumans = invitedPlayers.filter((p) => p !== null).length;
     return 1 + invitedHumans; // +1 for local player
   }, [invitedPlayers]);
+
+  // Persist game config changes automatically
+  useEffect(() => {
+    setLastGameConfig(gameConfig);
+  }, [gameConfig, setLastGameConfig]);
 
   // Calculate max players based on game mode
   // UPDATED: VS Computer now respects party size
@@ -220,12 +255,22 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
 
   // Handle ready toggle for bottom button
   const handleReadyToggle = () => {
+    // Check lightning for online modes
+    if (
+      !isReady &&
+      (gameConfig.category === "battleRoyale" ||
+        gameConfig.category === "arena")
+    ) {
+      if (lightning < 1) {
+        setShowAlertModal({ isOpen: true, mode: "noLightning" });
+        return;
+      }
+    }
+
     if (gameConfig.category === "computer") {
       // Security check: Block Ready in 2v2 if solo
       const humanPlayers = party.filter((p) => p !== null && !p.isBot);
       if (gameConfig.teamSize === "2v2" && humanPlayers.length < 2) {
-        // OPTIONAL: You could add a toast/notification here telling the user why
-        // For now, simply do nothing or maybe shake the card (handled in UI)
         return;
       }
 
@@ -255,26 +300,47 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
 
   // Auto-start when everyone is ready
   useEffect(() => {
-    if (!canStart) return;
+    if (!canStart || isSubtractingLightning || isProcessingStart) return;
 
-    if (
-      gameConfig.category === "battleRoyale" ||
-      gameConfig.category === "arena"
-    ) {
-      // For world modes, show matchmaking screen
-      setShowMatchmaking(true);
-    } else if (gameConfig.category === "friends") {
-      // For friends mode, auto-start after a brief delay
-      // For friends mode, auto-start immediately
-      onStartGame(
-        gameConfig.category,
-        gameConfig.teamSize,
-        gameConfig.category
-      );
-      return;
-    }
+    const startWithLightningCheck = async () => {
+      if (
+        gameConfig.category === "battleRoyale" ||
+        gameConfig.category === "arena"
+      ) {
+        // Online modes: Spend 1 lightning
+        if (lightning >= 1) {
+          setIsProcessingStart(true);
+          setIsSubtractingLightning(true);
+          // Wait for effect
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          spendLightning(1);
+          setIsSubtractingLightning(false);
+          setShowMatchmaking(true);
+        } else {
+          setIsReady(false);
+          setShowAlertModal({ isOpen: true, mode: "noLightning" });
+        }
+      } else if (gameConfig.category === "friends") {
+        setIsProcessingStart(true);
+        onStartGame(
+          gameConfig.category,
+          gameConfig.teamSize,
+          gameConfig.category
+        );
+      }
+    };
+
+    startWithLightningCheck();
     // Computer mode is handled in handleReadyToggle
-  }, [canStart, gameConfig, onStartGame]);
+  }, [
+    canStart,
+    gameConfig,
+    onStartGame,
+    lightning,
+    spendLightning,
+    isSubtractingLightning,
+    isProcessingStart,
+  ]);
 
   const handleMatchFound = (
     _opponents: { name: string; avatarUrl?: string }[]
@@ -375,11 +441,12 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
     const maxPlayers = getMaxPlayersForMode(config.category, config.teamSize);
     if (currentHumanPlayerCount > maxPlayers) {
       setPendingModeConfig(config);
-      setShowTooManyPlayersModal(true);
+      setShowAlertModal({ isOpen: true, mode: "tooManyPlayers" });
       return;
     }
 
     setGameConfig(config);
+    setLastGameConfig(config);
     setIsReady(false);
     setSelectedSlotForSwap(null);
   };
@@ -459,17 +526,8 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
       <div className="lobby-scale-wrapper">
         <div className="lobby-content">
           {/* TOP SECTION: Header & Mode Selection */}
-          <div className="flex flex-col items-center gap-2 sm:gap-4 shrink-0">
+          <div className="flex flex-col items-center gap-2 sm:gap-4 shrink-0 pt-10 sm:pt-14">
             <header className="lobby-header">
-              <motion.div
-                className="lobby-badge"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0 }}
-              >
-                <Sparkles size={14} className="text-yellow-400" />
-                Party Lobby
-              </motion.div>
               <h1 className="lobby-title"> Eleven</h1>
             </header>
 
@@ -773,12 +831,13 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
         teamPlayers={teamPlayersForMatchmaking}
       />
 
-      <TooManyPlayersModal
-        isOpen={showTooManyPlayersModal}
+      <LobbyAlertModal
+        isOpen={showAlertModal.isOpen}
         onClose={() => {
-          setShowTooManyPlayersModal(false);
+          setShowAlertModal({ ...showAlertModal, isOpen: false });
           setPendingModeConfig(null);
         }}
+        mode={showAlertModal.mode}
         currentPlayerCount={currentHumanPlayerCount}
         maxPlayers={
           pendingModeConfig
@@ -796,6 +855,49 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
             : ""
         }
       />
+
+      {/* Lightning Subtraction Effect Overlay */}
+      <AnimatePresence mode="wait">
+        {isSubtractingLightning && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/80 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.5, y: 20 }}
+              animate={{ scale: [0.5, 1.2, 1], y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: -40 }}
+              className="flex flex-col items-center gap-6"
+            >
+              <div className="relative">
+                <Zap
+                  size={140}
+                  className="text-yellow-400 fill-yellow-400 drop-shadow-[0_0_35px_rgba(250,204,21,0.8)]"
+                />
+                <motion.span
+                  initial={{ opacity: 0, x: 20, y: 20 }}
+                  animate={{ opacity: 1, x: 50, y: 0 }}
+                  className="absolute top-0 right-0 text-6xl font-black text-red-500 drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]"
+                >
+                  -1
+                </motion.span>
+              </div>
+              <div className="text-center">
+                <h2 className="text-4xl font-black text-white uppercase tracking-[0.2em] mb-2">
+                  Preparing Arena
+                </h2>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]" />
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.15s]" />
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
