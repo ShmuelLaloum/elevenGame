@@ -6,6 +6,7 @@ import {
   Gem,
   Zap,
   Archive,
+  Coins as CoinIcon,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useUserStore } from "../../store/userStore";
@@ -21,12 +22,12 @@ const navItems = [
   },
   { id: "locker", label: "Locker", path: "/locker", icon: Archive },
   { id: "shop", label: "Shop", path: "/shop", icon: ShoppingBag },
-  { id: "diamonds", label: "Diamonds", path: "/diamonds", icon: Gem },
+  { id: "diamonds", label: "Store", path: "/store", icon: Gem },
 ];
 
 export const Navbar = () => {
   const location = useLocation();
-  const { diamonds, lightning } = useUserStore();
+  const { diamonds, lightning, coins } = useUserStore();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex justify-center p-4 pointer-events-none">
@@ -37,6 +38,15 @@ export const Navbar = () => {
             <Zap size={14} className="text-yellow-400 fill-yellow-400/20" />
             <span className="text-xs sm:text-sm font-bold text-white">
               {lightning}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-1.5 border-r border-slate-700/50 pr-1 sm:pr-2">
+            <CoinIcon
+              size={14}
+              className="text-yellow-500 fill-yellow-500/20"
+            />
+            <span className="text-xs sm:text-sm font-bold text-white">
+              {coins}
             </span>
           </div>
           <div className="flex items-center gap-1 sm:gap-1.5">

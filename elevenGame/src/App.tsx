@@ -5,7 +5,7 @@ import { PartyLobby } from "./components/lobby";
 import { Leaderboard } from "./components/pages/Leaderboard";
 import { Locker } from "./components/pages/Locker";
 import { Shop } from "./components/pages/Shop";
-import { Diamonds } from "./components/pages/Diamonds";
+import { Store } from "./components/pages/Store";
 import { Navbar } from "./components/navigation/Navbar";
 import { GlobalModals } from "./components/modals/GlobalModals";
 import { useGameStore } from "./store/gameStore";
@@ -64,7 +64,7 @@ function App() {
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/locker" element={<Locker />} />
             <Route path="/shop" element={<Shop />} />
-            <Route path="/diamonds" element={<Diamonds />} />
+            <Route path="/store" element={<Store />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

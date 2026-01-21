@@ -6,6 +6,7 @@ import {
   AlertCircle,
   Info,
   AlertTriangle,
+  Coins as CoinIcon,
 } from "lucide-react";
 import { useUIStore } from "../../store/uiStore";
 import clsx from "clsx";
@@ -59,7 +60,11 @@ export const GlobalModals = () => {
                     Price:
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <Gem size={18} className="text-blue-400" />
+                    {purchaseModal.item?.currency === "coins" ? (
+                      <CoinIcon size={18} className="text-yellow-500" />
+                    ) : purchaseModal.item?.currency === "diamonds" ? (
+                      <Gem size={18} className="text-blue-400" />
+                    ) : null}
                     <span className="text-2xl font-black text-white">
                       {purchaseModal.item?.price || purchaseModal.item?.amount}
                     </span>
