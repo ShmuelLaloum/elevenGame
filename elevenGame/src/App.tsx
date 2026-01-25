@@ -50,27 +50,27 @@ function App() {
     setHasStarted(true);
   };
 
-  if (hasStarted) {
-    return <GameScreen onExit={() => setHasStarted(false)} />;
-  }
-
   return (
     <BrowserRouter>
       <div className="relative w-full h-full bg-slate-900 overflow-hidden">
-        {isNavbarVisible && <Navbar />}
+        {isNavbarVisible && !hasStarted && <Navbar />}
         <GlobalModals />
         <main className="w-full h-full">
-          <Routes>
-            <Route
-              path="/"
-              element={<PartyLobby onStartGame={handleStart} />}
-            />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/locker" element={<Locker />} />
-            <Route path="/shop" element={<Shop />} />
-            <Route path="/store" element={<Store />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          {hasStarted ? (
+            <GameScreen onExit={() => setHasStarted(false)} />
+          ) : (
+            <Routes>
+              <Route
+                path="/"
+                element={<PartyLobby onStartGame={handleStart} />}
+              />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/locker" element={<Locker />} />
+              <Route path="/shop" element={<Shop />} />
+              <Route path="/store" element={<Store />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          )}
         </main>
       </div>
     </BrowserRouter>

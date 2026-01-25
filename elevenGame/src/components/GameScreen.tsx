@@ -245,50 +245,66 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="flex items-start gap-2">
-            <div className="flex flex-col items-center max-w-[80px] sm:max-w-[120px]">
+          <div className="flex flex-col items-center gap-1 max-w-[80px] sm:max-w-[100px] lg:max-w-[120px] mt-8 sm:mt-12 lg:mt-16">
+            {/* Score badges - stacked above */}
+            <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
               <motion.div
-                className="game-player-avatar-wrapper"
+                className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg"
                 whileHover={{ scale: 1.05 }}
               >
-                <div className="game-player-avatar game-player-avatar-opponent">
-                  {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
-                </div>
-                {!isMyTurn && phase === "playing" && (
-                  <motion.div
-                    className="game-thinking-indicator"
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                  />
-                )}
-              </motion.div>
-              <h3 className="game-player-name mt-1 text-[10px] sm:text-xs font-bold w-full text-center break-words line-clamp-2 px-1">
-                {botPlayer?.name || "Opponent"}
-              </h3>
-            </div>
-
-            <div className="flex flex-col gap-1 pt-2">
-              {/* Round Bonuses */}
-              <motion.div
-                className="flex items-center gap-1.5 px-2 py-1 bg-yellow-400/10 border border-yellow-400/30 rounded-lg"
-                whileHover={{ scale: 1.05 }}
-              >
-                <Sparkles size={10} className="text-yellow-400" />
-                <span className="text-xs font-bold text-yellow-400">
+                <Sparkles
+                  size={12}
+                  className="sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-yellow-400"
+                />
+                <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
                   {botPlayer?.roundScopas || 0}
                 </span>
               </motion.div>
-              {/* Total Score */}
               <motion.div
-                className="flex items-center gap-1.5 px-2 py-1 bg-blue-400/10 border border-blue-400/30 rounded-lg"
+                className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg"
                 whileHover={{ scale: 1.05 }}
               >
-                <Trophy size={10} className="text-blue-400" />
-                <span className="text-xs font-bold text-blue-400">
+                <Trophy
+                  size={12}
+                  className="sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-blue-400"
+                />
+                <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
                   {botPlayer?.score || 0}
                 </span>
               </motion.div>
             </div>
+
+            {/* Avatar */}
+            <motion.div
+              className="game-player-avatar-wrapper"
+              whileHover={{ scale: 1.05 }}
+            >
+              <div className="game-player-avatar game-player-avatar-opponent !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
+                {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
+              </div>
+              {!isMyTurn && phase === "playing" && (
+                <motion.div
+                  className="game-thinking-indicator"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                />
+              )}
+            </motion.div>
+
+            {/* Name - text size scales with screen and shrinks based on length */}
+            <h3
+              className={`game-player-name font-bold w-full text-center break-words ${
+                (botPlayer?.name?.length || 0) > 10
+                  ? "text-[9px] sm:text-xs lg:text-sm"
+                  : (botPlayer?.name?.length || 0) > 6
+                  ? "text-[10px] sm:text-sm lg:text-base"
+                  : "text-[11px] sm:text-base lg:text-lg"
+              }`}
+            >
+              {(botPlayer?.name?.length || 0) > 15
+                ? `${botPlayer?.name?.slice(0, 15)}...`
+                : botPlayer?.name || "Opponent"}
+            </h3>
           </div>
 
           <div className="flex items-center gap-3 self-start mt-2">
@@ -454,61 +470,77 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
 
           {humanPlayer && (
             <div className="relative flex flex-col items-center gap-4 w-full px-4">
-              {/* Reset Section for Bottom User HUD - Now moved to the very bottom right corner */}
-              <div className="fixed right-3 sm:right-6 bottom-4 sm:bottom-6 flex items-end gap-1.5 sm:gap-2 z-[60]">
-                <div className="flex flex-col gap-1 pb-4">
-                  {/* Round Bonuses */}
+              {/* Reset Section for Bottom User HUD - Pinned to corner */}
+              <div className="fixed right-2 sm:right-6 lg:right-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center gap-1 z-[60] max-w-[80px] sm:max-w-[100px] lg:max-w-[120px]">
+                {/* Score badges - stacked above avatar */}
+                <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
                   <motion.div
-                    className="flex items-center justify-end gap-1.5 px-2 py-1 bg-yellow-400/10 border border-yellow-400/30 rounded-lg shrink-0"
+                    className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0"
                     whileHover={{ scale: 1.05 }}
                   >
-                    <span className="text-[10px] sm:text-xs font-bold text-yellow-400">
+                    <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
                       {humanPlayer?.roundScopas || 0}
                     </span>
-                    <Sparkles size={10} className="text-yellow-400" />
+                    <Sparkles
+                      size={12}
+                      className="sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-yellow-400"
+                    />
                   </motion.div>
-                  {/* Total Score */}
                   <motion.div
-                    className="flex items-center justify-end gap-1.5 px-2 py-1 bg-blue-400/10 border border-blue-400/30 rounded-lg shrink-0"
+                    className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0"
                     whileHover={{ scale: 1.05 }}
                   >
-                    <span className="text-[10px] sm:text-xs font-bold text-blue-400">
+                    <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
                       {humanPlayer?.score || 0}
                     </span>
-                    <Trophy size={10} className="text-blue-400" />
+                    <Trophy
+                      size={12}
+                      className="sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-blue-400"
+                    />
                   </motion.div>
                 </div>
 
-                <div className="flex flex-col items-center max-w-[80px] sm:max-w-[120px]">
-                  <motion.div className="game-player-avatar-wrapper">
-                    <div className="game-player-avatar game-player-avatar-self">
-                      {humanPlayer.name.charAt(0).toUpperCase()}
-                    </div>
-                    {isMyTurn && phase === "playing" && (
-                      <motion.div
-                        className="game-turn-ring"
-                        animate={{ scale: [1, 1.1, 1], opacity: [1, 0.5, 1] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      />
-                    )}
-                  </motion.div>
-                  <span className="game-player-name mt-1 text-[10px] sm:text-xs font-bold w-full text-center break-words line-clamp-2 px-1">
-                    {humanPlayer.name}
-                  </span>
-                </div>
+                {/* Avatar */}
+                <motion.div className="game-player-avatar-wrapper">
+                  <div className="game-player-avatar game-player-avatar-self !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
+                    {humanPlayer.name.charAt(0).toUpperCase()}
+                  </div>
+                  {isMyTurn && phase === "playing" && (
+                    <motion.div
+                      className="game-turn-ring"
+                      animate={{ scale: [1, 1.1, 1], opacity: [1, 0.5, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  )}
+                </motion.div>
+
+                {/* Name - text size scales with screen and shrinks based on length */}
+                <span
+                  className={`game-player-name font-bold w-full text-center break-words ${
+                    humanPlayer.name.length > 10
+                      ? "text-[9px] sm:text-xs lg:text-sm"
+                      : humanPlayer.name.length > 6
+                      ? "text-[10px] sm:text-sm lg:text-base"
+                      : "text-[11px] sm:text-base lg:text-lg"
+                  }`}
+                >
+                  {humanPlayer.name.length > 15
+                    ? `${humanPlayer.name.slice(0, 15)}...`
+                    : humanPlayer.name}
+                </span>
               </div>
 
               {/* Captured Cards - Keep bottom left */}
               <motion.button
-                className="fixed left-3 sm:left-6 bottom-4 sm:bottom-6 flex flex-col items-center px-3 py-1 bg-slate-800/80 border border-slate-700/50 rounded-xl z-[60]"
+                className="fixed left-2 sm:left-6 lg:left-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center px-2 py-1 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg sm:rounded-xl lg:rounded-2xl z-[60]"
                 onClick={() => setShowCaptured(true)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <span className="text-sm font-bold text-white">
+                <span className="text-xs sm:text-lg lg:text-2xl font-black text-white">
                   {humanPlayer.capturedCards.length}
                 </span>
-                <span className="text-[10px] text-slate-500 uppercase">
+                <span className="text-[8px] sm:text-[10px] lg:text-xs text-slate-500 font-bold uppercase tracking-wider">
                   Captured
                 </span>
               </motion.button>

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Globe, Trophy, Loader2, X, Zap } from "lucide-react";
+import { Globe, Trophy, Loader2, Zap } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import clsx from "clsx";
 
@@ -14,7 +14,6 @@ interface MatchmakingScreenProps {
 
 export const MatchmakingScreen = ({
   isOpen,
-  onClose,
   onMatchFound,
   category,
   teamSize,
@@ -253,16 +252,6 @@ export const MatchmakingScreen = ({
               }}
             />
           </div>
-
-          {/* Cancel Button */}
-          <motion.button
-            onClick={onClose}
-            className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-400 hover:bg-slate-700 hover:text-white transition-all"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <X size={20} />
-          </motion.button>
 
           {/* Content */}
           <div className="relative z-10 flex flex-col items-center gap-4 sm:gap-6 p-4 sm:p-6 text-center w-full max-w-4xl">
