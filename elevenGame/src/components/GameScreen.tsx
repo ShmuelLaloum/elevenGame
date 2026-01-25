@@ -30,7 +30,6 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     playCard,
     selectHandCard,
     toggleBoardCard,
-    clearSelection,
     resetGame,
     restartMatch,
     nextRound,
@@ -51,7 +50,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
 
   /* Staggered Deal Logic */
   const [dealPhase, setDealPhase] = useState<"init" | "hands" | "board">(
-    "init"
+    "init",
   );
   const [isDealing, setIsDealing] = useState(true);
   const [dealOrder, setDealOrder] = useState<number>(0);
@@ -91,7 +90,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     const scheduleAudio = (startDelay: number) => {
       for (let i = 0; i < 4; i++) {
         audioTimers.push(
-          setTimeout(() => audio.playDeal(), startDelay + i * 200)
+          setTimeout(() => audio.playDeal(), startDelay + i * 200),
         );
       }
     };
@@ -99,10 +98,13 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     if (isFirstDeal) {
       t1 = setTimeout(() => setDealPhase("hands"), t_start * 1000);
       t2 = setTimeout(() => setDealPhase("board"), t_board_abs * 1000);
-      t3 = setTimeout(() => {
-        setIsDealing(false);
-        setInitialBoardAnimationDone(true);
-      }, (t_board_abs + 1.5) * 1000);
+      t3 = setTimeout(
+        () => {
+          setIsDealing(false);
+          setInitialBoardAnimationDone(true);
+        },
+        (t_board_abs + 1.5) * 1000,
+      );
 
       const p1Start =
         (t_start + (currentDealOrder === 0 ? 0 : DEAL_DURATION)) * 1000;
@@ -297,8 +299,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                 (botPlayer?.name?.length || 0) > 10
                   ? "text-[9px] sm:text-xs lg:text-sm"
                   : (botPlayer?.name?.length || 0) > 6
-                  ? "text-[10px] sm:text-sm lg:text-base"
-                  : "text-[11px] sm:text-base lg:text-lg"
+                    ? "text-[10px] sm:text-sm lg:text-base"
+                    : "text-[11px] sm:text-base lg:text-lg"
               }`}
             >
               {(botPlayer?.name?.length || 0) > 15
@@ -360,7 +362,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                           openAlertModal(
                             "No Lightning",
                             "You need lightning to start a new game!",
-                            "error"
+                            "error",
                           );
                           return;
                         }
@@ -454,20 +456,6 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
-          {selectedHandCardId && isMyTurn && (
-            <motion.button
-              onClick={clearSelection}
-              className="game-cancel-btn"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <X size={14} />
-              Cancel Selection
-            </motion.button>
-          )}
-
           {humanPlayer && (
             <div className="relative flex flex-col items-center gap-4 w-full px-4">
               {/* Reset Section for Bottom User HUD - Pinned to corner */}
@@ -520,8 +508,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                     humanPlayer.name.length > 10
                       ? "text-[9px] sm:text-xs lg:text-sm"
                       : humanPlayer.name.length > 6
-                      ? "text-[10px] sm:text-sm lg:text-base"
-                      : "text-[11px] sm:text-base lg:text-lg"
+                        ? "text-[10px] sm:text-sm lg:text-base"
+                        : "text-[11px] sm:text-base lg:text-lg"
                   }`}
                 >
                   {humanPlayer.name.length > 15
@@ -577,7 +565,6 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                   animate={{ scale: [1, 1.3, 1] }}
                   transition={{ duration: 0.6, repeat: Infinity }}
                 />
-                <span>Bot is thinking...</span>
               </motion.div>
             </motion.div>
           )}
@@ -597,7 +584,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
               openAlertModal(
                 "No Lightning",
                 "You need lightning to start a new game!",
-                "error"
+                "error",
               );
               return;
             }

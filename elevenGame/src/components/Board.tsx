@@ -49,21 +49,20 @@ export const Board = ({
     <div
       className={clsx(
         "relative w-full max-w-4xl h-[280px] sm:h-[380px] lg:h-[480px] rounded-2xl sm:rounded-3xl border-[4px] sm:border-[6px] border-emerald-900/40 bg-emerald-800/90 shadow-[inset_0_0_40px_rgba(0,0,0,0.5)] sm:shadow-[inset_0_0_80px_rgba(0,0,0,0.5)] backdrop-blur-sm flex items-center justify-center p-2 sm:p-6 transition-all duration-300",
-        className
+        className,
       )}
     >
       <div
         className={clsx(
           "grid transition-all duration-300 w-full justify-items-center items-center content-center",
           cols,
-          gap
+          gap,
         )}
       >
         <AnimatePresence>
           {cards.map((card) => (
             <motion.div
               key={card.id}
-              layoutId={disableAnimation ? undefined : `container-${card.id}`} // Disable layout (flight) if not dealing
               initial={disableAnimation ? false : { scale: 0.5, opacity: 0 }}
               animate={{ scale: scale, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}

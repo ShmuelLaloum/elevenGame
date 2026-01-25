@@ -191,7 +191,7 @@ export const ScoringModal = ({
                   variant="outline"
                   className="px-4 sm:px-8 py-3 sm:py-4 text-xs sm:text-xl flex-1 max-w-[200px]"
                 >
-                  Return to Menu
+                  Return to Lobby
                 </Button>
                 <Button
                   onClick={onRestart}
