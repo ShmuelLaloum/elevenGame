@@ -44,9 +44,9 @@ interface UserStore {
 
 
 export const useUserStore = create<UserStore>((set, get) => ({
-  diamonds: 500,
+  diamonds: 5,
   lightning: 5,
-  coins: 10000,
+  coins: 500,
   score: 6500,
   lastClaimFree: null,
   lastWatchAd: null,

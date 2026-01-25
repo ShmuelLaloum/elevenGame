@@ -61,7 +61,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
   const [showMatchmaking, setShowMatchmaking] = useState(false);
   const [showAlertModal, setShowAlertModal] = useState<{
     isOpen: boolean;
-    mode: "tooManyPlayers" | "noLightning";
+    mode: "tooManyPlayers";
   }>({ isOpen: false, mode: "tooManyPlayers" });
   const [pendingModeConfig, setPendingModeConfig] =
     useState<GameModeConfig | null>(null);
@@ -72,6 +72,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
     setNavbarVisible,
     shouldRestartMatchmaking,
     setShouldRestartMatchmaking,
+    openAlertModal,
   } = useUIStore();
 
   // Immediate Matchmaking if requested from in-game menu
@@ -294,7 +295,11 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
         gameConfig.category === "arena")
     ) {
       if (lightning < 1) {
-        setShowAlertModal({ isOpen: true, mode: "noLightning" });
+        openAlertModal(
+          "No Lightning",
+          "You need lightning to start a new game!",
+          "error"
+        );
         return;
       }
     }
@@ -346,7 +351,11 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
           setShowMatchmaking(true);
         } else {
           setIsReady(false);
-          setShowAlertModal({ isOpen: true, mode: "noLightning" });
+          openAlertModal(
+            "No Lightning",
+            "You need lightning to start a new game!",
+            "error"
+          );
         }
       } else if (gameConfig.category === "friends") {
         setIsProcessingStart(true);
@@ -862,7 +871,6 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
           setShowAlertModal({ ...showAlertModal, isOpen: false });
           setPendingModeConfig(null);
         }}
-        mode={showAlertModal.mode}
         currentPlayerCount={currentHumanPlayerCount}
         maxPlayers={
           pendingModeConfig

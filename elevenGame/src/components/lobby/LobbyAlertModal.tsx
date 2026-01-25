@@ -1,11 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, X, Zap } from "lucide-react";
-import clsx from "clsx";
+import { AlertTriangle, X } from "lucide-react";
 
 interface LobbyAlertModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mode: "tooManyPlayers" | "noLightning";
   currentPlayerCount?: number;
   maxPlayers?: number;
   targetMode?: string;
@@ -14,13 +12,10 @@ interface LobbyAlertModalProps {
 export const LobbyAlertModal = ({
   isOpen,
   onClose,
-  mode,
   currentPlayerCount = 0,
   maxPlayers = 0,
   targetMode = "",
 }: LobbyAlertModalProps) => {
-  const isLightning = mode === "noLightning";
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -41,24 +36,14 @@ export const LobbyAlertModal = ({
 
           {/* Modal */}
           <motion.div
-            className={clsx(
-              "relative w-full max-w-md bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border shadow-2xl overflow-hidden",
-              isLightning ? "border-yellow-500/30" : "border-red-500/30"
-            )}
+            className="relative w-full max-w-md bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-red-500/30 shadow-2xl overflow-hidden"
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ type: "spring", damping: 25 }}
           >
             {/* Glow at top */}
-            <div
-              className={clsx(
-                "absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-20 blur-2xl pointer-events-none",
-                isLightning
-                  ? "bg-gradient-to-b from-yellow-500/30 to-transparent"
-                  : "bg-gradient-to-b from-red-500/30 to-transparent"
-              )}
-            />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-20 blur-2xl pointer-events-none bg-gradient-to-b from-red-500/30 to-transparent" />
 
             {/* Close button */}
             <motion.button
@@ -74,21 +59,12 @@ export const LobbyAlertModal = ({
             <div className="relative p-6 text-center">
               {/* Icon */}
               <motion.div
-                className={clsx(
-                  "mx-auto w-16 h-16 rounded-full border-2 flex items-center justify-center mb-4",
-                  isLightning
-                    ? "bg-yellow-500/20 border-yellow-500/50"
-                    : "bg-red-500/20 border-red-500/50"
-                )}
+                className="mx-auto w-16 h-16 rounded-full border-2 flex items-center justify-center mb-4 bg-red-500/20 border-red-500/50"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
               >
-                {isLightning ? (
-                  <Zap className="w-8 h-8 text-yellow-400 fill-yellow-400" />
-                ) : (
-                  <AlertTriangle className="w-8 h-8 text-red-400" />
-                )}
+                <AlertTriangle className="w-8 h-8 text-red-400" />
               </motion.div>
 
               {/* Title */}
@@ -98,7 +74,7 @@ export const LobbyAlertModal = ({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 }}
               >
-                {isLightning ? "Out of Lightning!" : "Too Many Players!"}
+                Too Many Players!
               </motion.h2>
 
               {/* Message */}
@@ -108,50 +84,29 @@ export const LobbyAlertModal = ({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
               >
-                {isLightning ? (
-                  <>
-                    You need{" "}
-                    <span className="text-white font-bold">
-                      Lightning Bolt
-                    </span>{" "}
-                    to play online. Claim your daily gift or watch an ad in the
-                    shop to get more!
-                  </>
-                ) : (
-                  <>
-                    You have{" "}
-                    <span className="text-white font-bold">
-                      {currentPlayerCount}
-                    </span>{" "}
-                    players, but
-                    <span className="text-white font-bold ml-1">
-                      {targetMode}
-                    </span>{" "}
-                    only supports up to
-                    <span className="text-white font-bold ml-1">
-                      {maxPlayers}
-                    </span>
-                    .
-                  </>
-                )}
+                You have{" "}
+                <span className="text-white font-bold">
+                  {currentPlayerCount}
+                </span>{" "}
+                players, but
+                <span className="text-white font-bold ml-1">
+                  {targetMode}
+                </span>{" "}
+                only supports up to
+                <span className="text-white font-bold ml-1">{maxPlayers}</span>.
               </motion.p>
 
               {/* Action Button */}
               <motion.button
                 onClick={onClose}
-                className={clsx(
-                  "w-full py-4 rounded-xl text-white font-black shadow-lg transition-all",
-                  isLightning
-                    ? "bg-gradient-to-r from-yellow-500 to-orange-500 shadow-yellow-500/20"
-                    : "bg-gradient-to-r from-red-500 to-orange-500 shadow-red-500/20"
-                )}
+                className="w-full py-4 rounded-xl text-white font-black shadow-lg transition-all bg-gradient-to-r from-red-500 to-orange-500 shadow-red-500/20"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.35 }}
               >
-                {isLightning ? "Back to Lobby" : "Got it"}
+                Got it
               </motion.button>
             </div>
           </motion.div>
