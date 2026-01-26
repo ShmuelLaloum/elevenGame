@@ -73,7 +73,7 @@ export const Hand = ({
         {cards.map((card, index) => (
           <motion.div
             key={card.id}
-            initial={{ y: 600, x: 400, rotate: 0, opacity: 0 }}
+            initial={{ y: 600, x: 0, rotate: 0, opacity: 0 }}
             animate={{
               y: 0,
               x: 0,

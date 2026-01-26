@@ -125,29 +125,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   restartMatch: () => {
     const { players } = get();
-    // Re-init with same names
+    // Start fresh match with same player names
     const playerNames = players.map(p => p.name);
     const newState = GameEngine.initializeGame(playerNames);
     
-    // Ensure scores are 0 (initializeGame does this, but let's be sure)
-    // And phase is 'playing'
     set({ 
         ...newState, 
         phase: 'playing',
         round: 1,
         dealId: Date.now(),
         selectedHandCardId: null, 
-        selectedBoardCardIds: [] 
+        selectedBoardCardIds: [],
+        revealingCardId: null,
+        isAnimating: false
     });
   },
 
   nextRound: () => {
-    const { players } = get();
-    // Initialize new game layout
-    // We want to KEEP players' names and scores, but reset hands/captured.
+    const { players, dealOrder: oldDealOrder } = get();
     
-    // 1. Create new deck/board (resets p.hand and p.capturedCards internally)
-    const newState = GameEngine.initializeGame(players.map(p => p.name));
+    // Rotate dealer for the next deck cycle
+    const nextDealOrder = ((oldDealOrder ?? 0) + 1) % players.length;
+    const playerNames = players.map(p => p.name);
+    
+    // 1. Create new deck/board with rotated dealer
+    const newState = GameEngine.initializeGame(playerNames, nextDealOrder);
     
     // 2. Restore previous scores 
     const continuedPlayers = newState.players.map((p, i) => ({
@@ -158,10 +160,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
         ...newState,
         players: continuedPlayers,
-        round: 1, // Start at sub-round 1 for deal animation
-        dealId: Date.now(), // Trigger new animation
+        round: 1,
+        dealId: Date.now(),
         selectedHandCardId: null,
-        selectedBoardCardIds: []
+        selectedBoardCardIds: [],
+        revealingCardId: null,
+        isAnimating: false
     });
   },
 

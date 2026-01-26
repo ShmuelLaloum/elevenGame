@@ -11,7 +11,7 @@ export class GameEngine {
   static executeMove(
     state: GameState,
     handCardId: string,
-    captureCardIds: string[]
+    captureCardIds: string[],
   ): GameState {
     const activePlayer = state.players[state.activePlayerIndex];
     const handCard = activePlayer.hand.find((c) => c.id === handCardId);
@@ -19,7 +19,7 @@ export class GameEngine {
     if (!handCard) throw new Error("Card not in hand");
 
     const captureCards = state.board.filter((c) =>
-      captureCardIds.includes(c.id)
+      captureCardIds.includes(c.id),
     );
 
     const isCapture = captureCards.length > 0;
@@ -96,20 +96,23 @@ export class GameEngine {
       if (nextDeck.length > 0) {
         // Deal more
         const dealSize = 4;
-        const dealResult = this.dealCards(nextDeck, nextPlayers, dealSize);
+        const dealResult = this.dealCards(
+          nextDeck,
+          nextPlayers,
+          dealSize,
+          state.dealOrder,
+        );
         nextDeck = dealResult.deck;
-        // Update players with new hands
-        // Note: dealCards needs to return updated players
-        // We can implement helper for dealing
+
         return {
           ...state,
           deck: nextDeck,
           players: dealResult.players,
           board: nextBoard,
-          activePlayerIndex:
-            (state.activePlayerIndex + 1) % state.players.length,
+          activePlayerIndex: state.dealOrder ?? 0, // First person dealt starts again? User: "receives first starts first"
           lastCapturingPlayerIndex,
-          round: state.round + 1, // technically sub-round
+          round: state.round + 1, // sub-round
+          dealOrder: state.dealOrder,
         };
       } else {
         // Deck empty, Round Over (Game Over or just End of Deal?)
@@ -133,7 +136,6 @@ export class GameEngine {
 
         // Scopa Bonus Calculation
         // Now calculated within each player's structure via roundScopas
-      
 
         // Calculate breakdown
         const results = determineWinnerPoints(p1, p2);
@@ -168,50 +170,69 @@ export class GameEngine {
   static dealCards(
     deck: Card[],
     players: Player[],
-    count: number
+    count: number,
+    dealOrder: number = 0,
   ): { deck: Card[]; players: Player[] } {
     let currentDeck = [...deck];
-    const newPlayers = players.map((p) => {
+    const newPlayers = [...players];
+
+    // Sort player indices based on deal order: [dealOrder, (dealOrder + 1) % len]
+    const indices = players.map((_, i) => (i + dealOrder) % players.length);
+
+    indices.forEach((idx) => {
+      const p = newPlayers[idx];
       const newHand = [...p.hand];
       for (let i = 0; i < count; i++) {
         if (currentDeck.length > 0) {
           newHand.push(currentDeck.shift()!);
         }
       }
-      return { ...p, hand: newHand };
+      newPlayers[idx] = { ...p, hand: newHand };
     });
+
     return { deck: currentDeck, players: newPlayers };
   }
 
-  static initializeGame(playerNames: string[]): GameState {
+  static initializeGame(
+    playerNames: string[],
+    forcedDealOrder?: number,
+  ): GameState {
     let deck = shuffleDeck(createDeck());
+    const dealOrder =
+      forcedDealOrder !== undefined
+        ? forcedDealOrder
+        : Math.random() > 0.5
+          ? 0
+          : 1;
+
     // Deal 4 to board
     const board: Card[] = [];
     for (let i = 0; i < 4; i++) board.push(deck.shift()!);
 
     // Create Players
     let players: Player[] = playerNames.map((name) => ({
-      id: name, // simplified
+      id: name,
       name,
       hand: [],
       capturedCards: [],
       score: 0,
-      isBot: name === "Bot",
+      isBot: name === "Bot" || name.includes("Bot"),
       roundScopas: 0,
     }));
 
-    // Deal 4 to each player
-    const dealRes = this.dealCards(deck, players, 4);
+    // Deal 4 to each player in order
+    const dealRes = this.dealCards(deck, players, 4, dealOrder);
 
     return {
       deck: dealRes.deck,
       players: dealRes.players,
       board,
-      activePlayerIndex: 0,
+      activePlayerIndex: dealOrder, // First person dealt starts
       round: 1,
       phase: "playing",
       lastCapturingPlayerIndex: null,
       activeScopaPlayerIndex: null,
+      dealOrder,
     };
   }
 }

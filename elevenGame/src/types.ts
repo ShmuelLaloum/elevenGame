@@ -36,4 +36,5 @@ export interface GameState {
   isAnimating?: boolean; // Global flag to lock UI/Timers during animations
   lastBonusEvent?: { playerId: string; timestamp: number }; // Unique trigger for UI animations
   dealId?: number; // Unique ID to trigger deal animations
+  dealOrder?: number; // 0 or 1, identifies who gets cards first this round
 }
