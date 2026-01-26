@@ -60,38 +60,30 @@ export const Board = ({
         )}
       >
         <AnimatePresence>
-          {cards.map((card) => (
+          {cards.map((card, index) => (
             <motion.div
               key={card.id}
+              layout
               initial={disableAnimation ? false : { scale: 0.5, opacity: 0 }}
               animate={{ scale: scale, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
               transition={{
-                delay: disableAnimation
-                  ? 0
-                  : baseDelay +
-                    0.2 *
-                      (cards.indexOf(card) !== -1 ? cards.indexOf(card) : 0),
+                delay: disableAnimation ? 0 : baseDelay + index * 0.1,
                 type: "spring",
-                stiffness: 200,
-                damping: 20,
+                stiffness: 260,
+                damping: 30,
               }}
-              className="transition-all duration-300 flex justify-center items-center origin-center"
+              className="flex justify-center items-center origin-center"
               style={{
                 width: "100%",
                 height: "100%",
               }}
             >
-              <div
-                style={{ transform: `scale(${scale})` }}
-                className="origin-center"
-              >
-                <Card
-                  card={card}
-                  isSelected={selectedCardIds.includes(card.id)}
-                  onClick={() => onCardClick(card.id)}
-                />
-              </div>
+              <Card
+                card={card}
+                isSelected={selectedCardIds.includes(card.id)}
+                onClick={() => onCardClick(card.id)}
+              />
             </motion.div>
           ))}
         </AnimatePresence>

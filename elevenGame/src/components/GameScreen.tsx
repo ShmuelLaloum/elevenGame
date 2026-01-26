@@ -36,6 +36,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     lastBonusEvent,
     round,
     category,
+    revealingCardId,
+    isAnimating,
   } = useGameStore();
 
   const { lightning } = useUserStore();
@@ -45,6 +47,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   const botPlayer = players[1];
 
   const isMyTurn = activePlayerIndex === 0;
+  const isScoringOrGameOver = phase === "scoring" || phase === "game_over";
   const [showCaptured, setShowCaptured] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -54,8 +57,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   );
   const [isDealing, setIsDealing] = useState(true);
   const [dealOrder, setDealOrder] = useState<number>(0);
-  const [initialBoardAnimationDone, setInitialBoardAnimationDone] =
-    useState(false);
+  /* Game State & Animations */
+  const [turnTimeLeft, setTurnTimeLeft] = useState(10);
 
   const INTRO_DELAY = 1.5;
   const DEAL_DURATION = 0.8;
@@ -78,10 +81,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
 
     if (isFirstDeal) {
       setDealPhase("init");
-      setInitialBoardAnimationDone(false);
     } else {
       setDealPhase("hands");
-      setInitialBoardAnimationDone(true);
     }
 
     let t1: any, t2: any, t3: any;
@@ -101,7 +102,6 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       t3 = setTimeout(
         () => {
           setIsDealing(false);
-          setInitialBoardAnimationDone(true);
         },
         (t_board_abs + 1.5) * 1000,
       );
@@ -133,16 +133,62 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     };
   }, [phase, round]);
 
+  // Consolidated Turn Timer Mechanism
   useEffect(() => {
-    (window as any).gameStore = useGameStore;
-  }, []);
+    // Reset timer to 10s on turn / phase / round change
+    setTurnTimeLeft(10);
 
+    // Stop timer if not in playing phase, dealing or scoring
+    if (phase !== "playing" || isDealing || isScoringOrGameOver) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTurnTimeLeft((prev) => {
+        // Pause countdown if an action animation is happening
+        if (isAnimating || revealingCardId) return prev;
+
+        if (prev <= 0) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 0.1;
+      });
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [
+    phase,
+    activePlayerIndex,
+    isDealing,
+    isScoringOrGameOver,
+    round,
+    isAnimating,
+    revealingCardId,
+  ]);
+
+  // Handle Turn Expiry Logic
   useEffect(() => {
-    console.log(`Current Phase: ${phase}, Active: ${activePlayerIndex}`);
-  }, [phase, activePlayerIndex]);
+    if (
+      turnTimeLeft <= 0 &&
+      phase === "playing" &&
+      !isDealing &&
+      !isAnimating
+    ) {
+      const currentPlayer = players[activePlayerIndex];
+      // HUMAN AUTO-PLAY on timeout
+      if (activePlayerIndex === 0 && currentPlayer?.hand.length > 0) {
+        const randomCard =
+          currentPlayer.hand[
+            Math.floor(Math.random() * currentPlayer.hand.length)
+          ];
+        playCard(randomCard.id, []);
+      }
+    }
+  }, [turnTimeLeft, phase, isDealing, isAnimating]);
 
   const handleSmartMove = (cardId: string) => {
-    if (!isMyTurn) return;
+    if (!isMyTurn || isAnimating || isDealing) return;
 
     const handCard = humanPlayer.hand.find((c) => c.id === cardId);
     if (!handCard) return;
@@ -170,12 +216,12 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   }, [lastBonusEvent]);
 
   const handleHandCardClick = (cardId: string) => {
-    if (!isMyTurn) return;
+    if (!isMyTurn || isAnimating || isDealing) return;
     selectHandCard(cardId);
   };
 
   const handleBoardCardClick = (cardId: string) => {
-    if (!isMyTurn || !selectedHandCardId) return;
+    if (!isMyTurn || !selectedHandCardId || isAnimating || isDealing) return;
 
     const currentSelection = selectedBoardCardIds;
     const isAlreadySelected = currentSelection.includes(cardId);
@@ -203,11 +249,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
 
     if (isSelectionMatch) {
       playCard(selectedHandCardId, newSelection);
-      audio.playCapture();
     }
   };
-
-  const isScoringOrGameOver = phase === "scoring" || phase === "game_over";
 
   return (
     <div className="game-container">
@@ -222,91 +265,92 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
             key={i}
             className="game-particle"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: `${(i * 7) % 100}%`,
+              top: `${(i * 13) % 100}%`,
             }}
             animate={{
-              y: [0, -20, 0],
-              opacity: [0.2, 0.5, 0.2],
+              y: [0, -60, 0],
+              opacity: [0.1, 0.4, 0.1],
             }}
             transition={{
-              duration: 4 + Math.random() * 2,
+              duration: 5 + Math.random() * 5,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              ease: "easeInOut",
             }}
           />
         ))}
       </div>
 
-      {/* Scalable Game Wrapper */}
       <div className="game-scale-wrapper">
-        {/* Top Bar / Opponent Info */}
+        {/* Top Bar with Players */}
         <motion.div
           className="game-top-bar"
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="flex flex-col items-center gap-1 max-w-[80px] sm:max-w-[100px] lg:max-w-[120px] mt-8 sm:mt-12 lg:mt-16">
-            {/* Score badges - stacked above */}
-            <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
-              <motion.div
-                className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg"
-                whileHover={{ scale: 1.05 }}
-              >
-                <Sparkles
-                  size={12}
-                  className="sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-yellow-400"
-                />
-                <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
-                  {botPlayer?.roundScopas || 0}
-                </span>
-              </motion.div>
-              <motion.div
-                className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg"
-                whileHover={{ scale: 1.05 }}
-              >
-                <Trophy
-                  size={12}
-                  className="sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-blue-400"
-                />
-                <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
-                  {botPlayer?.score || 0}
-                </span>
-              </motion.div>
-            </div>
-
-            {/* Avatar */}
-            <motion.div
-              className="game-player-avatar-wrapper"
-              whileHover={{ scale: 1.05 }}
-            >
-              <div className="game-player-avatar game-player-avatar-opponent !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
-                {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
-              </div>
-              {!isMyTurn && phase === "playing" && (
+          <div className="game-player-info self-start">
+            <div className="flex flex-col items-center gap-1">
+              {/* Score badges - stacked above avatar */}
+              <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
                 <motion.div
-                  className="game-thinking-indicator"
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                />
-              )}
-            </motion.div>
+                  className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <Sparkles
+                    size={12}
+                    className="sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-yellow-400"
+                  />
+                  <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
+                    {botPlayer?.roundScopas || 0}
+                  </span>
+                </motion.div>
+                <motion.div
+                  className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <Trophy
+                    size={12}
+                    className="sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-blue-400"
+                  />
+                  <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
+                    {botPlayer?.score || 0}
+                  </span>
+                </motion.div>
+              </div>
 
-            {/* Name - text size scales with screen and shrinks based on length */}
-            <h3
-              className={`game-player-name font-bold w-full text-center break-words ${
-                (botPlayer?.name?.length || 0) > 10
-                  ? "text-[9px] sm:text-xs lg:text-sm"
-                  : (botPlayer?.name?.length || 0) > 6
-                    ? "text-[10px] sm:text-sm lg:text-base"
-                    : "text-[11px] sm:text-base lg:text-lg"
-              }`}
-            >
-              {(botPlayer?.name?.length || 0) > 15
-                ? `${botPlayer?.name?.slice(0, 15)}...`
-                : botPlayer?.name || "Opponent"}
-            </h3>
+              {/* Avatar */}
+              <motion.div
+                className="game-player-avatar-wrapper"
+                whileHover={{ scale: 1.05 }}
+              >
+                <div className="game-player-avatar game-player-avatar-opponent !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
+                  {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
+                </div>
+                {!isMyTurn && phase === "playing" && (
+                  <svg className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] -rotate-90 pointer-events-none">
+                    <circle
+                      cx="50%"
+                      cy="50%"
+                      r="45%"
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="3"
+                      strokeDasharray="100"
+                      strokeDashoffset={(turnTimeLeft / 10) * 100}
+                      pathLength="100"
+                      strokeLinecap="round"
+                      className="transition-all duration-100 ease-linear"
+                    />
+                  </svg>
+                )}
+              </motion.div>
+
+              {/* Name */}
+              <h3 className="game-player-name font-bold w-full text-center truncate">
+                {botPlayer?.name || "Opponent"}
+              </h3>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 self-start mt-2">
@@ -424,6 +468,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
             <Hand
               cards={isFirstDeal && dealPhase === "init" ? [] : botPlayer.hand}
               isBot={true}
+              revealingCardId={revealingCardId}
               baseDelay={isFirstDeal ? delay_p2 : 0}
             />
           )}
@@ -434,14 +479,10 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           className="game-board-area"
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.4, type: "spring" }}
+          transition={{ delay: 0.2, type: "spring" }}
         >
           <Board
-            cards={
-              !initialBoardAnimationDone && isDealing && dealPhase !== "board"
-                ? []
-                : board
-            }
+            cards={board}
             selectedCardIds={selectedBoardCardIds}
             onCardClick={handleBoardCardClick}
             baseDelay={delay_board}
@@ -494,34 +535,36 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                     {humanPlayer.name.charAt(0).toUpperCase()}
                   </div>
                   {isMyTurn && phase === "playing" && (
-                    <motion.div
-                      className="game-turn-ring"
-                      animate={{ scale: [1, 1.1, 1], opacity: [1, 0.5, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
+                    <svg className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] -rotate-90 pointer-events-none">
+                      <circle
+                        cx="50%"
+                        cy="50%"
+                        r="45%"
+                        fill="none"
+                        stroke="#10b981"
+                        strokeWidth="3"
+                        strokeDasharray="100"
+                        strokeDashoffset={(turnTimeLeft / 10) * 100}
+                        pathLength="100"
+                        strokeLinecap="round"
+                        className="transition-all duration-100 ease-linear"
+                      />
+                    </svg>
                   )}
                 </motion.div>
 
-                {/* Name - text size scales with screen and shrinks based on length */}
-                <span
-                  className={`game-player-name font-bold w-full text-center break-words ${
-                    humanPlayer.name.length > 10
-                      ? "text-[9px] sm:text-xs lg:text-sm"
-                      : humanPlayer.name.length > 6
-                        ? "text-[10px] sm:text-sm lg:text-base"
-                        : "text-[11px] sm:text-base lg:text-lg"
-                  }`}
-                >
-                  {humanPlayer.name.length > 15
-                    ? `${humanPlayer.name.slice(0, 15)}...`
-                    : humanPlayer.name}
+                {/* Name */}
+                <span className="game-player-name font-bold w-full text-center truncate">
+                  {humanPlayer.name}
                 </span>
               </div>
 
               {/* Captured Cards - Keep bottom left */}
               <motion.button
                 className="fixed left-2 sm:left-6 lg:left-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center px-2 py-1 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg sm:rounded-xl lg:rounded-2xl z-[60]"
-                onClick={() => setShowCaptured(true)}
+                onClick={() => {
+                  if (!isAnimating) setShowCaptured(true);
+                }}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -538,6 +581,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                   isFirstDeal && dealPhase === "init" ? [] : humanPlayer.hand
                 }
                 selectedCardId={selectedHandCardId}
+                revealingCardId={revealingCardId}
                 onCardClick={handleHandCardClick}
                 onCardDoubleClick={handleSmartMove}
                 baseDelay={isFirstDeal ? delay_p1 : 0}
@@ -545,37 +589,12 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
             </div>
           )}
         </motion.div>
-
-        {/* Current Turn Indicator */}
-        <AnimatePresence>
-          {!isMyTurn && phase === "playing" && (
-            <motion.div
-              className="game-turn-indicator"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-              <motion.div
-                className="game-turn-toast"
-                animate={{ scale: [1, 1.02, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <motion.div
-                  className="game-turn-dot"
-                  animate={{ scale: [1, 1.3, 1] }}
-                  transition={{ duration: 0.6, repeat: Infinity }}
-                />
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* Scoring Modal Overlay */}
       <ScoringModal
         isOpen={isScoringOrGameOver}
         players={players}
-        activeScopaPlayerIndex={useGameStore((s) => s.activeScopaPlayerIndex)}
         onNextRound={nextRound}
         onRestart={() => {
           const isOnline = category === "battleRoyale" || category === "arena";
@@ -600,6 +619,12 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           onExit?.();
         }}
         gameOver={phase === "game_over"}
+      />
+
+      <CapturedCardsModal
+        isOpen={showCaptured}
+        onClose={() => setShowCaptured(false)}
+        cards={humanPlayer?.capturedCards || []}
       />
 
       {/* Bonus Notification Overlay */}
@@ -637,12 +662,6 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <CapturedCardsModal
-        isOpen={showCaptured}
-        onClose={() => setShowCaptured(false)}
-        cards={humanPlayer?.capturedCards || []}
-      />
     </div>
   );
 };

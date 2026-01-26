@@ -1168,3 +1168,17 @@
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+/* ===== 3D TRANSFORM UTILITIES ===== */
+.transform-style-3d {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.dashed {
+  border-style: dashed;
+}

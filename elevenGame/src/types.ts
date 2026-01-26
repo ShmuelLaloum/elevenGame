@@ -32,5 +32,7 @@ export interface GameState {
   category?: string;
   lastCapturingPlayerIndex: number | null; // For assigning remaining cards at end
   activeScopaPlayerIndex: number | null; // Tracks who currently has the Scopa bonus (5 pts)
+  revealingCardId?: string | null; // For synchronization of capture-reveal animations
+  isAnimating?: boolean; // Global flag to lock UI/Timers during animations
   lastBonusEvent?: { playerId: string; timestamp: number }; // Unique trigger for UI animations
 }

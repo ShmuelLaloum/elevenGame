@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { GameState } from '../types';
 import { GameEngine } from '../engine/game';
 import { getBestMove } from '../engine/bot';
+import { audio } from '../utils/audio';
 
 interface GameStore extends GameState {
   // Actions
@@ -19,6 +20,9 @@ interface GameStore extends GameState {
   selectHandCard: (cardId: string) => void;
   toggleBoardCard: (cardId: string) => void;
   clearSelection: () => void;
+  setRevealingCardId: (cardId: string | null) => void;
+  setIsAnimating: (isAnimating: boolean) => void;
+  isAnimating: boolean;
 }
 
 const initialState: GameState = {
@@ -39,14 +43,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   selectedHandCardId: null,
   selectedBoardCardIds: [],
+  isAnimating: false,
 
   initializeGame: (playerNames, category, opponentNames) => {
     const newState = GameEngine.initializeGame(playerNames);
     
-    // If we have explicit opponent names, override the defaults
     if (opponentNames && opponentNames.length > 0) {
       newState.players = newState.players.map((p, i) => {
-        // Human is usually player 0, opponents are 1, 2, 3...
         if (i > 0 && opponentNames[i - 1]) {
           return { ...p, name: opponentNames[i - 1] };
         }
@@ -54,32 +57,67 @@ export const useGameStore = create<GameStore>((set, get) => ({
       });
     }
 
-    set({ ...newState, category, selectedHandCardId: null, selectedBoardCardIds: [] });
+    set({ ...newState, category, selectedHandCardId: null, selectedBoardCardIds: [], isAnimating: false });
   },
 
-  playCard: (handCardId, captureCardIds) => {
-    const state = get();
-    // Execute move
-    const newState = GameEngine.executeMove(state, handCardId, captureCardIds);
-    set({ ...newState, selectedHandCardId: null, selectedBoardCardIds: [] });
+  playCard: async (handCardId, captureCardIds) => {
+    const { isAnimating, phase } = get();
+    if (isAnimating || phase !== 'playing') return;
 
-    // Check if next player is Bot
-    const nextPlayerIndex = newState.activePlayerIndex;
-    const nextPlayer = newState.players[nextPlayerIndex];
+    const isCapture = captureCardIds.length > 0;
+    
+    try {
+      // 1. Lock UI and Start Animation sequence if needed
+      set({ isAnimating: true });
+      
+      if (isCapture) {
+        set({ revealingCardId: handCardId });
+        // Wait for reveal flip (1.2s + extra for processing)
+        await new Promise(resolve => setTimeout(resolve, 1400));
+        audio.playCapture();
+      } else {
+        // Small defensive delay even for non-captures to prevent rapid clicks/re-renders
+        await new Promise(resolve => setTimeout(resolve, 300));
+        audio.playPlace();
+      }
 
-    if (nextPlayer.isBot && newState.phase === 'playing') {
-      // Trigger Bot Move with delay
-      setTimeout(() => {
-        const botState = get(); // Get latest state
-        // Verify it's still bot's turn (in case of restarts)
-        if (botState.activePlayerIndex === nextPlayerIndex && botState.phase === 'playing') {
+      // 2. Execute Logic using the state at execution time
+      const currentState = get();
+      const newState = GameEngine.executeMove(currentState, handCardId, captureCardIds);
+      
+      // 3. Finalize State
+      set({ 
+        ...newState, 
+        selectedHandCardId: null, 
+        selectedBoardCardIds: [], 
+        revealingCardId: null,
+        isAnimating: false 
+      });
+
+      // 4. Trigger Bot if it's currently the bot's turn
+      const nextPlayerIndex = newState.activePlayerIndex;
+      const nextPlayer = newState.players[nextPlayerIndex];
+
+      if (nextPlayer.isBot && newState.phase === 'playing') {
+        setTimeout(() => {
+          const botState = get(); // Re-check state inside timeout
+          if (botState.activePlayerIndex === nextPlayerIndex && botState.phase === 'playing' && !botState.isAnimating) {
             const move = getBestMove(botState, nextPlayerIndex);
-            // Recursively call playCard for Bot
             get().playCard(move.handCardId, move.captureCardIds);
-        }
-      }, 1000);
+          }
+        }, 1500);
+      }
+    } catch (error) {
+      console.error("Game Error:", error);
+      // Fallback: Unlock UI so game doesn't freeze
+      set({ isAnimating: false, revealingCardId: null });
+    } finally {
+       // Just in case
     }
   },
+
+  setRevealingCardId: (cardId) => set({ revealingCardId: cardId }),
+  setIsAnimating: (isAnimating) => set({ isAnimating }),
 
   resetGame: () => {
     set({ ...initialState });

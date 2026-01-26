@@ -7,6 +7,7 @@ interface HandProps {
   cards: CardType[];
   isBot?: boolean;
   selectedCardId?: string | null;
+  revealingCardId?: string | null;
   onCardClick?: (cardId: string) => void;
   onCardDoubleClick?: (cardId: string) => void;
   className?: string;
@@ -18,6 +19,7 @@ const TapHandler = ({
   card,
   isBot,
   isSelected,
+  isRevealing,
   onSingleTap,
   onDoubleTap,
 }: any) => {
@@ -39,7 +41,12 @@ const TapHandler = ({
 
   return (
     <div onClick={handleTap}>
-      <Card card={card} isFaceDown={isBot} isSelected={isSelected} />
+      <Card
+        card={card}
+        isFaceDown={isBot}
+        isSelected={isSelected}
+        isRevealing={isRevealing}
+      />
     </div>
   );
 };
@@ -48,6 +55,7 @@ export const Hand = ({
   cards,
   isBot,
   selectedCardId,
+  revealingCardId,
   onCardClick,
   onCardDoubleClick,
   className,
@@ -81,6 +89,7 @@ export const Hand = ({
               card={card}
               isBot={isBot}
               isSelected={selectedCardId === card.id}
+              isRevealing={revealingCardId === card.id}
               onSingleTap={() => onCardClick?.(card.id)}
               onDoubleTap={() => onCardDoubleClick?.(card.id)}
             />
