@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, memo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ScoringModal } from "./ScoringModal";
 import { CapturedCardsModal } from "./CapturedCardsModal";
@@ -20,39 +20,112 @@ import {
   Play,
 } from "lucide-react";
 
-export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
-  const {
-    board,
-    players,
-    activePlayerIndex,
-    selectedHandCardId,
-    selectedBoardCardIds,
-    phase,
-    playCard,
-    selectHandCard,
-    toggleBoardCard,
-    resetGame,
-    restartMatch,
-    nextRound,
-    lastBonusEvent,
-    round,
-    category,
-    revealingCardId,
-    isAnimating,
-    dealId,
-    dealOrder: storeDealOrder,
-  } = useGameStore();
+// Optimized sub-component to isolate timer updates from the main game loop
+const TurnTimerCircle = memo(
+  ({
+    isActive,
+    color,
+    onExpire,
+  }: {
+    isActive: boolean;
+    color: string;
+    onExpire: () => void;
+  }) => {
+    const [timeLeft, setTimeLeft] = useState(10);
+    const frameRef = useRef<number>(0);
+    const startTimeRef = useRef<number>(0);
 
-  const { lightning } = useUserStore();
-  const { setShouldRestartMatchmaking, openAlertModal } = useUIStore();
+    useEffect(() => {
+      if (!isActive) {
+        setTimeLeft(10);
+        return;
+      }
+
+      startTimeRef.current = performance.now();
+
+      const tick = (now: number) => {
+        const elapsed = (now - startTimeRef.current) / 1000;
+        const remaining = Math.max(0, 10 - elapsed);
+
+        setTimeLeft(remaining);
+
+        if (remaining <= 0) {
+          onExpire();
+        } else {
+          frameRef.current = requestAnimationFrame(tick);
+        }
+      };
+
+      frameRef.current = requestAnimationFrame(tick);
+      return () => cancelAnimationFrame(frameRef.current);
+    }, [isActive, onExpire]);
+
+    if (!isActive) return null;
+
+    return (
+      <svg className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] -rotate-90 pointer-events-none">
+        <circle
+          cx="50%"
+          cy="50%"
+          r="45%"
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeDasharray="100"
+          strokeDashoffset={(timeLeft / 10) * 100}
+          pathLength="100"
+          strokeLinecap="round"
+          style={{ transition: "none" }} // Animation handled by RAF
+        />
+      </svg>
+    );
+  },
+);
+
+export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
+  // Selectors to minimize re-renders
+  const board = useGameStore((s) => s.board);
+  const players = useGameStore((s) => s.players);
+  const activePlayerIndex = useGameStore((s) => s.activePlayerIndex);
+  const selectedHandCardId = useGameStore((s) => s.selectedHandCardId);
+  const selectedBoardCardIds = useGameStore((s) => s.selectedBoardCardIds);
+  const phase = useGameStore((s) => s.phase);
+  const playCard = useGameStore((s) => s.playCard);
+  const selectHandCard = useGameStore((s) => s.selectHandCard);
+  const toggleBoardCard = useGameStore((s) => s.toggleBoardCard);
+  const resetGame = useGameStore((s) => s.resetGame);
+  const restartMatch = useGameStore((s) => s.restartMatch);
+  const nextRound = useGameStore((s) => s.nextRound);
+  const lastBonusEvent = useGameStore((s) => s.lastBonusEvent);
+  const round = useGameStore((s) => s.round);
+  const category = useGameStore((s) => s.category);
+  const revealingCardId = useGameStore((s) => s.revealingCardId);
+  const isAnimating = useGameStore((s) => s.isAnimating);
+  const dealId = useGameStore((s) => s.dealId);
+  const storeDealOrder = useGameStore((s) => s.dealOrder);
+
+  const lightning = useUserStore((s) => s.lightning);
+  const setShouldRestartMatchmaking = useUIStore(
+    (s) => s.setShouldRestartMatchmaking,
+  );
+  const openAlertModal = useUIStore((s) => s.openAlertModal);
 
   const humanPlayer = players[0];
   const botPlayer = players[1];
 
   const isMyTurn = activePlayerIndex === 0;
-  const isScoringOrGameOver = phase === "scoring" || phase === "game_over";
+
   const [showCaptured, setShowCaptured] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScoringModalOpen, setIsScoringModalOpen] = useState(false);
+
+  // Sync ScoringModal state in an effect to avoid "update during render" warnings
+  useEffect(() => {
+    const shouldBeOpen = phase === "scoring" || phase === "game_over";
+    if (shouldBeOpen !== isScoringModalOpen) {
+      setIsScoringModalOpen(shouldBeOpen);
+    }
+  }, [phase, isScoringModalOpen]);
 
   /* Staggered Deal Logic */
   const [dealPhase, setDealPhase] = useState<"init" | "hands" | "board">(
@@ -60,9 +133,6 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   );
   const [isDealing, setIsDealing] = useState(true);
   const dealOrder = storeDealOrder ?? 0;
-
-  /* Game State & Animations */
-  const [turnTimeLeft, setTurnTimeLeft] = useState(10);
 
   const INTRO_DELAY = 1.5;
   const DEAL_DURATION = 0.8;
@@ -82,12 +152,9 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       setDealPhase("hands");
     }
 
-    const t_timeouts: any[] = [];
-    const audio_timeouts: any[] = [];
+    const t_timeouts: ReturnType<typeof setTimeout>[] = [];
 
     const scheduleAudio = (startDelay: number) => {
-      if (useGameStore.getState().phase !== "playing") return;
-
       for (let i = 0; i < 4; i++) {
         const timeoutId = setTimeout(
           () => {
@@ -96,7 +163,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           },
           startDelay + i * 200,
         );
-        audio_timeouts.push(timeoutId);
+        t_timeouts.push(timeoutId);
       }
     };
 
@@ -123,91 +190,16 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       scheduleAudio(boardStart);
     } else {
       t_timeouts.push(setTimeout(() => setIsDealing(false), 2500));
-
       const p1Start = (dealOrder === 0 ? 0 : DEAL_DURATION) * 1000;
       const p2Start = (dealOrder === 1 ? 0 : DEAL_DURATION) * 1000;
-
       scheduleAudio(p1Start);
       scheduleAudio(p2Start);
     }
 
     return () => {
       t_timeouts.forEach(clearTimeout);
-      audio_timeouts.forEach(clearTimeout);
     };
   }, [phase, round, dealId, dealOrder, isFirstDeal, t_start, t_board_abs]);
-
-  // Bot Turn Trigger - Start bot move if it's bot's turn and not dealing
-  useEffect(() => {
-    if (
-      !isDealing &&
-      !isAnimating &&
-      phase === "playing" &&
-      players[activePlayerIndex]?.isBot
-    ) {
-      const timer = setTimeout(() => {
-        // Re-verify conditions
-        const state = useGameStore.getState();
-        if (
-          state.phase === "playing" &&
-          !state.isAnimating &&
-          state.players[state.activePlayerIndex]?.isBot
-        ) {
-          const move = getBestMove(state, state.activePlayerIndex);
-          playCard(move.handCardId, move.captureCardIds);
-        }
-      }, 600);
-      return () => clearTimeout(timer);
-    }
-  }, [isDealing, isAnimating, activePlayerIndex, phase, players]);
-
-  // Consolidated Turn Timer Mechanism
-  useEffect(() => {
-    setTurnTimeLeft(10);
-    if (phase !== "playing" || isDealing || isScoringOrGameOver) {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setTurnTimeLeft((prev) => {
-        if (isAnimating || revealingCardId) return prev;
-        if (prev <= 0) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 0.1;
-      });
-    }, 100);
-
-    return () => clearInterval(timer);
-  }, [
-    phase,
-    activePlayerIndex,
-    isDealing,
-    isScoringOrGameOver,
-    round,
-    isAnimating,
-    revealingCardId,
-  ]);
-
-  // Handle Turn Expiry Logic
-  useEffect(() => {
-    if (
-      turnTimeLeft <= 0 &&
-      phase === "playing" &&
-      !isDealing &&
-      !isAnimating
-    ) {
-      const currentPlayer = players[activePlayerIndex];
-      if (activePlayerIndex === 0 && currentPlayer?.hand.length > 0) {
-        const playableCard =
-          currentPlayer.hand[
-            Math.floor(Math.random() * currentPlayer.hand.length)
-          ];
-        handleSmartMove(playableCard.id);
-      }
-    }
-  }, [turnTimeLeft, phase, isDealing, isAnimating, activePlayerIndex, players]);
 
   const handleSmartMove = (cardId: string) => {
     if (!isMyTurn || isAnimating || isDealing) return;
@@ -224,8 +216,53 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     }
   };
 
-  const [bonusNotif, setBonusNotif] = useState<string | null>(null);
+  const handleTimeout = () => {
+    if (
+      activePlayerIndex === 0 &&
+      humanPlayer?.hand.length > 0 &&
+      phase === "playing" &&
+      !isDealing &&
+      !isAnimating
+    ) {
+      const playableCard =
+        humanPlayer.hand[Math.floor(Math.random() * humanPlayer.hand.length)];
+      handleSmartMove(playableCard.id);
+    }
+  };
 
+  const activePlayerIsBot = players[activePlayerIndex]?.isBot;
+
+  // Bot Turn Trigger
+  useEffect(() => {
+    if (
+      !isDealing &&
+      !isAnimating &&
+      phase === "playing" &&
+      activePlayerIsBot
+    ) {
+      const timer = setTimeout(() => {
+        const state = useGameStore.getState();
+        if (
+          state.phase === "playing" &&
+          !state.isAnimating &&
+          state.players[state.activePlayerIndex]?.isBot
+        ) {
+          const move = getBestMove(state, state.activePlayerIndex);
+          playCard(move.handCardId, move.captureCardIds);
+        }
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [
+    isDealing,
+    isAnimating,
+    activePlayerIndex,
+    phase,
+    activePlayerIsBot,
+    playCard,
+  ]);
+
+  const [bonusNotif, setBonusNotif] = useState<string | null>(null);
   useEffect(() => {
     if (lastBonusEvent) {
       setBonusNotif("BONUS!");
@@ -247,12 +284,9 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     let newSelection = isAlreadySelected
       ? currentSelection.filter((id) => id !== cardId)
       : [...currentSelection, cardId];
-
     toggleBoardCard(cardId);
-
     const handCard = humanPlayer.hand.find((c) => c.id === selectedHandCardId);
     if (!handCard) return;
-
     const validOptions = getValidCaptures(handCard, board);
     const isSelectionMatch = validOptions.some((option) => {
       if (option.length !== newSelection.length) return false;
@@ -260,37 +294,35 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       const selectionIds = [...newSelection].sort();
       return optionIds.every((val, index) => val === selectionIds[index]);
     });
-
     if (isSelectionMatch) {
       playCard(selectedHandCardId, newSelection);
     }
   };
 
+  const particles = useMemo(
+    () =>
+      [...Array(15)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="game-particle"
+          style={{ left: `${(i * 7) % 100}%`, top: `${(i * 13) % 100}%` }}
+          animate={{ y: [0, -60, 0], opacity: [0.1, 0.4, 0.1] }}
+          transition={{
+            duration: 5 + Math.random() * 5,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      )),
+    [],
+  );
+
   return (
     <div className="game-container" key={dealId}>
-      {/* Animated Background */}
       <div className="game-background">
         <div className="game-background-image" />
         <div className="game-background-overlay" />
-        {[...Array(15)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="game-particle"
-            style={{
-              left: `${(i * 7) % 100}%`,
-              top: `${(i * 13) % 100}%`,
-            }}
-            animate={{
-              y: [0, -60, 0],
-              opacity: [0.1, 0.4, 0.1],
-            }}
-            transition={{
-              duration: 5 + Math.random() * 5,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
+        {particles}
       </div>
 
       <div className="game-scale-wrapper">
@@ -303,64 +335,50 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           <div className="game-player-info self-start">
             <div className="flex flex-col items-center gap-1">
               <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
-                <motion.div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg">
+                <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg">
                   <Sparkles size={12} className="text-yellow-400" />
                   <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
                     {botPlayer?.roundScopas || 0}
                   </span>
-                </motion.div>
-                <motion.div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg">
+                </div>
+                <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg">
                   <Trophy size={12} className="text-blue-400" />
                   <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
                     {botPlayer?.score || 0}
                   </span>
-                </motion.div>
+                </div>
               </div>
-
-              <motion.div
-                className="game-player-avatar-wrapper"
-                whileHover={{ scale: 1.05 }}
-              >
+              <div className="game-player-avatar-wrapper">
                 <div className="game-player-avatar game-player-avatar-opponent !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
                   {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
                 </div>
-                {!isMyTurn && phase === "playing" && (
-                  <svg className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] -rotate-90 pointer-events-none">
-                    <circle
-                      cx="50%"
-                      cy="50%"
-                      r="45%"
-                      fill="none"
-                      stroke="#ef4444"
-                      strokeWidth="3"
-                      strokeDasharray="100"
-                      strokeDashoffset={(turnTimeLeft / 10) * 100}
-                      pathLength="100"
-                      strokeLinecap="round"
-                      className="transition-all duration-100 ease-linear"
-                    />
-                  </svg>
-                )}
-              </motion.div>
+                <TurnTimerCircle
+                  isActive={
+                    !isMyTurn &&
+                    phase === "playing" &&
+                    !isDealing &&
+                    !isAnimating &&
+                    !revealingCardId
+                  }
+                  color="#ef4444"
+                  onExpire={handleTimeout}
+                />
+              </div>
               <h3 className="game-player-name font-bold w-full text-center truncate">
                 {botPlayer?.name || "Opponent"}
               </h3>
             </div>
           </div>
-
           <div className="flex items-center gap-3 self-start mt-2">
-            <motion.button
+            <button
               onClick={() => setIsMenuOpen(true)}
               className="game-menu-btn"
-              whileHover={{ scale: 1.1, rotate: 90 }}
-              whileTap={{ scale: 0.9 }}
             >
               <MenuIcon size={20} />
-            </motion.button>
+            </button>
           </div>
         </motion.div>
 
-        {/* Menu Modal */}
         <AnimatePresence>
           {isMenuOpen && (
             <motion.div
@@ -375,19 +393,17 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.9, y: 20 }}
               >
-                <motion.button
+                <button
                   onClick={() => setIsMenuOpen(false)}
-                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-400 hover:bg-slate-600 hover:text-white transition-all"
-                  whileHover={{ scale: 1.1, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
+                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-400"
                 >
                   <X size={18} />
-                </motion.button>
+                </button>
                 <h2 className="game-menu-title">
                   <Sparkles className="text-yellow-400" size={24} /> Game Menu
                 </h2>
                 <div className="space-y-3 mt-6">
-                  <motion.button
+                  <button
                     onClick={() => {
                       const isOnline =
                         category === "battleRoyale" || category === "arena";
@@ -410,42 +426,33 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                       }
                     }}
                     className="game-menu-option game-menu-option-primary"
-                    whileHover={{ scale: 1.02, x: 5 }}
-                    whileTap={{ scale: 0.98 }}
                   >
-                    <RotateCcw size={20} />
+                    <RotateCcw size={20} />{" "}
                     {category === "battleRoyale" || category === "arena"
                       ? "Start New Game"
                       : "Restart Game"}
-                  </motion.button>
-
-                  <motion.button
+                  </button>
+                  <button
                     onClick={() => {
                       setIsMenuOpen(false);
                       onExit?.();
                     }}
                     className="game-menu-option game-menu-option-danger"
-                    whileHover={{ scale: 1.02, x: 5 }}
-                    whileTap={{ scale: 0.98 }}
                   >
                     <LogOut size={20} /> Quit to Lobby
-                  </motion.button>
-
-                  <motion.button
+                  </button>
+                  <button
                     onClick={() => setIsMenuOpen(false)}
                     className="game-menu-option game-menu-option-secondary"
-                    whileHover={{ scale: 1.02, x: 5 }}
-                    whileTap={{ scale: 0.98 }}
                   >
                     <Play size={20} /> Resume Game
-                  </motion.button>
+                  </button>
                 </div>
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Hands & Board Area */}
         <motion.div
           className="game-opponent-hand"
           initial={{ y: -100, opacity: 0 }}
@@ -494,54 +501,44 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
             <div className="relative flex flex-col items-center gap-4 w-full px-4">
               <div className="fixed right-2 sm:right-6 lg:right-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center gap-1 z-[60] max-w-[80px] sm:max-w-[100px] lg:max-w-[120px]">
                 <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
-                  <motion.div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
+                  <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
                     <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
                       {humanPlayer?.roundScopas || 0}
                     </span>
                     <Sparkles size={12} className="text-yellow-400" />
-                  </motion.div>
-                  <motion.div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
+                  </div>
+                  <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
                     <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
                       {humanPlayer?.score || 0}
                     </span>
                     <Trophy size={12} className="text-blue-400" />
-                  </motion.div>
+                  </div>
                 </div>
-
-                <motion.div className="game-player-avatar-wrapper">
+                <div className="game-player-avatar-wrapper">
                   <div className="game-player-avatar game-player-avatar-self !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
                     {humanPlayer.name.charAt(0).toUpperCase()}
                   </div>
-                  {isMyTurn && phase === "playing" && (
-                    <svg className="absolute -inset-2 w-[calc(100%+16px)] h-[calc(100%+16px)] -rotate-90 pointer-events-none">
-                      <circle
-                        cx="50%"
-                        cy="50%"
-                        r="45%"
-                        fill="none"
-                        stroke="#10b981"
-                        strokeWidth="3"
-                        strokeDasharray="100"
-                        strokeDashoffset={(turnTimeLeft / 10) * 100}
-                        pathLength="100"
-                        strokeLinecap="round"
-                        className="transition-all duration-100 ease-linear"
-                      />
-                    </svg>
-                  )}
-                </motion.div>
+                  <TurnTimerCircle
+                    isActive={
+                      isMyTurn &&
+                      phase === "playing" &&
+                      !isDealing &&
+                      !isAnimating &&
+                      !revealingCardId
+                    }
+                    color="#10b981"
+                    onExpire={handleTimeout}
+                  />
+                </div>
                 <span className="game-player-name font-bold w-full text-center truncate">
                   {humanPlayer.name}
                 </span>
               </div>
-
-              <motion.button
+              <button
                 className="fixed left-2 sm:left-6 lg:left-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center px-2 py-1 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg sm:rounded-xl lg:rounded-2xl z-[60]"
                 onClick={() => {
                   if (!isAnimating) setShowCaptured(true);
                 }}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
               >
                 <span className="text-xs sm:text-lg lg:text-2xl font-black text-white">
                   {humanPlayer.capturedCards.length}
@@ -549,8 +546,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                 <span className="text-[8px] sm:text-[10px] lg:text-xs text-slate-500 font-bold uppercase tracking-wider">
                   Captured
                 </span>
-              </motion.button>
-
+              </button>
               <Hand
                 cards={
                   isFirstDeal && dealPhase === "init" ? [] : humanPlayer.hand
@@ -568,7 +564,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       </div>
 
       <ScoringModal
-        isOpen={isScoringOrGameOver}
+        isOpen={isScoringModalOpen}
         players={players}
         onNextRound={nextRound}
         onRestart={() => {

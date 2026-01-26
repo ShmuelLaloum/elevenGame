@@ -19,7 +19,7 @@ interface PartyLobbyProps {
   onStartGame: (
     category: string,
     teamSize: string,
-    opponentNames?: string[]
+    opponentNames?: string[],
   ) => void;
 }
 
@@ -35,28 +35,30 @@ interface PartyPlayer {
 }
 
 export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
-  const { lightning, spendLightning, lastGameConfig, setLastGameConfig } =
-    useUserStore();
+  const lightning = useUserStore((s) => s.lightning);
+  const spendLightning = useUserStore((s) => s.spendLightning);
+  const lastGameConfig = useUserStore((s) => s.lastGameConfig);
+  const setLastGameConfig = useUserStore((s) => s.setLastGameConfig);
 
   const [gameConfig, setGameConfig] = useState<GameModeConfig>(
     (lastGameConfig as GameModeConfig) || {
       category: "computer",
       teamSize: "1v1",
-    }
+    },
   );
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteForSlotIndex, setInviteForSlotIndex] = useState<number | null>(
-    null
+    null,
   );
 
   const [showModeSelect, setShowModeSelect] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [invitedPlayers, setInvitedPlayers] = useState<(PartyPlayer | null)[]>(
-    []
+    [],
   );
   const [leaderId, setLeaderId] = useState<string>("local"); // Track who is the leader
   const [selectedSlotForSwap, setSelectedSlotForSwap] = useState<number | null>(
-    null
+    null,
   );
   const [showMatchmaking, setShowMatchmaking] = useState(false);
   const [showAlertModal, setShowAlertModal] = useState<{
@@ -68,12 +70,14 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
   const [isProcessingStart, setIsProcessingStart] = useState(false);
   const [isSubtractingLightning, setIsSubtractingLightning] = useState(false);
 
-  const {
-    setNavbarVisible,
-    shouldRestartMatchmaking,
-    setShouldRestartMatchmaking,
-    openAlertModal,
-  } = useUIStore();
+  const setNavbarVisible = useUIStore((s) => s.setNavbarVisible);
+  const shouldRestartMatchmaking = useUIStore(
+    (s) => s.shouldRestartMatchmaking,
+  );
+  const setShouldRestartMatchmaking = useUIStore(
+    (s) => s.setShouldRestartMatchmaking,
+  );
+  const openAlertModal = useUIStore((s) => s.openAlertModal);
 
   // Immediate Matchmaking if requested from in-game menu
   useEffect(() => {
@@ -139,7 +143,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
   // UPDATED: VS Computer now respects party size
   const getMaxPlayersForMode = (
     category: GameModeCategory,
-    teamSize: string
+    teamSize: string,
   ): number => {
     if (category === "battleRoyale" || category === "arena") {
       return teamSize === "2v2" ? 2 : 1;
@@ -298,7 +302,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
         openAlertModal(
           "No Lightning",
           "You need lightning to start a new game!",
-          "error"
+          "error",
         );
         return;
       }
@@ -354,7 +358,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
           openAlertModal(
             "No Lightning",
             "You need lightning to start a new game!",
-            "error"
+            "error",
           );
         }
       } else if (gameConfig.category === "friends") {
@@ -376,7 +380,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
   ]);
 
   const handleMatchFound = (
-    opponents: { name: string; avatarUrl?: string }[]
+    opponents: { name: string; avatarUrl?: string }[],
   ) => {
     setShowMatchmaking(false);
     const opponentNames = opponents.map((o) => o.name);
@@ -422,7 +426,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
   const handleKickPlayer = (playerId: string) => {
     if (!isCurrentUserLeader) return;
     setInvitedPlayers((prev) =>
-      prev.map((p) => (p && p.id === playerId ? null : p))
+      prev.map((p) => (p && p.id === playerId ? null : p)),
     );
   };
 
@@ -570,7 +574,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
               onClick={() => setShowModeSelect(true)}
               className={clsx(
                 "lobby-mode-badge bg-gradient-to-br",
-                modeColors[gameConfig.category]
+                modeColors[gameConfig.category],
               )}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -599,7 +603,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
               <div
                 className={clsx(
                   "lobby-team",
-                  gameConfig.teamSize === "2v2" && "lobby-team-2v2"
+                  gameConfig.teamSize === "2v2" && "lobby-team-2v2",
                 )}
               >
                 {party.map((player, index) => (
@@ -646,7 +650,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
                 <div
                   className={clsx(
                     "lobby-team",
-                    gameConfig.teamSize === "2v2" && "lobby-team-2v2"
+                    gameConfig.teamSize === "2v2" && "lobby-team-2v2",
                   )}
                 >
                   {party.slice(0, totalSlots / 2).map((player, index) => (
@@ -705,7 +709,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
                     className={clsx(
                       "lobby-vs-circle",
                       "bg-gradient-to-br",
-                      modeColors[gameConfig.category]
+                      modeColors[gameConfig.category],
                     )}
                   >
                     <span className="lobby-vs-text">VS</span>
@@ -716,7 +720,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
                 <div
                   className={clsx(
                     "lobby-team",
-                    gameConfig.teamSize === "2v2" && "lobby-team-2v2"
+                    gameConfig.teamSize === "2v2" && "lobby-team-2v2",
                   )}
                 >
                   {party.slice(totalSlots / 2).map((player, index) => (
@@ -793,7 +797,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
                   "lobby-ready-btn",
                   isReady
                     ? "lobby-ready-btn-active"
-                    : "lobby-ready-btn-inactive"
+                    : "lobby-ready-btn-inactive",
                 )}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -876,7 +880,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
           pendingModeConfig
             ? getMaxPlayersForMode(
                 pendingModeConfig.category,
-                pendingModeConfig.teamSize
+                pendingModeConfig.teamSize,
               )
             : 2
         }

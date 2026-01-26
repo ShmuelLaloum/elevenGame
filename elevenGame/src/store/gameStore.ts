@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { GameState } from '../types';
 import { GameEngine } from '../engine/game';
-import { getBestMove } from '../engine/bot';
 import { audio } from '../utils/audio';
 
 interface GameStore extends GameState {
@@ -94,25 +93,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
         isAnimating: false 
       });
 
-      // 4. Trigger Bot if it's currently the bot's turn
-      const nextPlayerIndex = newState.activePlayerIndex;
-      const nextPlayer = newState.players[nextPlayerIndex];
-
-      if (nextPlayer.isBot && newState.phase === 'playing') {
-        setTimeout(() => {
-          const botState = get(); // Re-check state inside timeout
-          if (botState.activePlayerIndex === nextPlayerIndex && botState.phase === 'playing' && !botState.isAnimating) {
-            const move = getBestMove(botState, nextPlayerIndex);
-            get().playCard(move.handCardId, move.captureCardIds);
-          }
-        }, 1500);
-      }
+      // Bot trigger removed - now handled by effect in GameScreen.tsx for better UI/Logic separation
     } catch (error) {
       console.error("Game Error:", error);
       // Fallback: Unlock UI so game doesn't freeze
       set({ isAnimating: false, revealingCardId: null });
-    } finally {
-       // Just in case
     }
   },
 
