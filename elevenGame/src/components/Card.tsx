@@ -11,6 +11,7 @@ interface CardProps {
   onClick?: () => void;
   onDoubleClick?: () => void;
   isFaceDown?: boolean;
+  revealDirection?: "up" | "down";
   className?: string;
 }
 
@@ -35,6 +36,7 @@ export const Card = ({
   onClick,
   onDoubleClick,
   isFaceDown = false,
+  revealDirection = "up",
   className,
 }: CardProps) => {
   const Icon = suitIcons[card.suit];
@@ -45,7 +47,13 @@ export const Card = ({
     initial: { scale: 0.5, rotateY: 0, y: 600, x: -200, opacity: 0 },
     animate: {
       scale: isRevealing ? 1.25 : isSelected ? 1.1 : 1,
-      y: isRevealing ? -60 : isSelected ? -20 : 0,
+      y: isRevealing
+        ? revealDirection === "down"
+          ? 60
+          : -60
+        : isSelected
+          ? -20
+          : 0,
       opacity: 1,
       zIndex: isRevealing ? 100 : isSelected ? 50 : 1,
       transition: { type: "spring", stiffness: 260, damping: 20 },

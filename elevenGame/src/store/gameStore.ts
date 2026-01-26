@@ -57,7 +57,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       });
     }
 
-    set({ ...newState, category, selectedHandCardId: null, selectedBoardCardIds: [], isAnimating: false });
+    set({ ...newState, category, selectedHandCardId: null, selectedBoardCardIds: [], isAnimating: false, dealId: Date.now() });
   },
 
   playCard: async (handCardId, captureCardIds) => {
@@ -135,31 +135,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ...newState, 
         phase: 'playing',
         round: 1,
+        dealId: Date.now(),
         selectedHandCardId: null, 
         selectedBoardCardIds: [] 
     });
   },
 
   nextRound: () => {
-    const { players, round } = get();
+    const { players } = get();
     // Initialize new game layout
     // We want to KEEP players' names and scores, but reset hands/captured.
-    // Actually GameEngine.initializeGame resets everything.
-    // Let's manually do what initializeGame does but reusing player objects.
     
-    // 1. Create new deck/board
+    // 1. Create new deck/board (resets p.hand and p.capturedCards internally)
     const newState = GameEngine.initializeGame(players.map(p => p.name));
     
-    // 2. Restore previous scores and update round number
+    // 2. Restore previous scores 
     const continuedPlayers = newState.players.map((p, i) => ({
         ...p,
-        score: players[i].score // Keep old score
+        score: players[i].score // Keep cumulative score
     }));
 
     set({
         ...newState,
         players: continuedPlayers,
-        round: round + 1,
+        round: 1, // Start at sub-round 1 for deal animation
+        dealId: Date.now(), // Trigger new animation
         selectedHandCardId: null,
         selectedBoardCardIds: []
     });

@@ -10,6 +10,7 @@ interface HandProps {
   revealingCardId?: string | null;
   onCardClick?: (cardId: string) => void;
   onCardDoubleClick?: (cardId: string) => void;
+  revealDirection?: "up" | "down";
   className?: string;
   baseDelay?: number;
 }
@@ -20,6 +21,7 @@ const TapHandler = ({
   isBot,
   isSelected,
   isRevealing,
+  revealDirection,
   onSingleTap,
   onDoubleTap,
 }: any) => {
@@ -46,6 +48,7 @@ const TapHandler = ({
         isFaceDown={isBot}
         isSelected={isSelected}
         isRevealing={isRevealing}
+        revealDirection={revealDirection}
       />
     </div>
   );
@@ -58,6 +61,7 @@ export const Hand = ({
   revealingCardId,
   onCardClick,
   onCardDoubleClick,
+  revealDirection,
   className,
   baseDelay = 0,
 }: HandProps) => {
@@ -90,6 +94,7 @@ export const Hand = ({
               isBot={isBot}
               isSelected={selectedCardId === card.id}
               isRevealing={revealingCardId === card.id}
+              revealDirection={revealDirection}
               onSingleTap={() => onCardClick?.(card.id)}
               onDoubleTap={() => onCardDoubleClick?.(card.id)}
             />

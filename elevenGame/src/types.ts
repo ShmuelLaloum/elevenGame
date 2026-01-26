@@ -35,4 +35,5 @@ export interface GameState {
   revealingCardId?: string | null; // For synchronization of capture-reveal animations
   isAnimating?: boolean; // Global flag to lock UI/Timers during animations
   lastBonusEvent?: { playerId: string; timestamp: number }; // Unique trigger for UI animations
+  dealId?: number; // Unique ID to trigger deal animations
 }

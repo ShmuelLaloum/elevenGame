@@ -38,6 +38,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     category,
     revealingCardId,
     isAnimating,
+    dealId,
   } = useGameStore();
 
   const { lightning } = useUserStore();
@@ -131,7 +132,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       clearTimeout(t3);
       audioTimers.forEach(clearTimeout);
     };
-  }, [phase, round]);
+  }, [phase, round, dealId]);
 
   // Consolidated Turn Timer Mechanism
   useEffect(() => {
@@ -176,16 +177,17 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       !isAnimating
     ) {
       const currentPlayer = players[activePlayerIndex];
-      // HUMAN AUTO-PLAY on timeout
+      // HUMAN AUTO-PLAY on timeout - Now performs a SMART move
       if (activePlayerIndex === 0 && currentPlayer?.hand.length > 0) {
-        const randomCard =
+        // Find a card that can capture
+        const playableCard =
           currentPlayer.hand[
             Math.floor(Math.random() * currentPlayer.hand.length)
           ];
-        playCard(randomCard.id, []);
+        handleSmartMove(playableCard.id);
       }
     }
-  }, [turnTimeLeft, phase, isDealing, isAnimating]);
+  }, [turnTimeLeft, phase, isDealing, isAnimating, activePlayerIndex]);
 
   const handleSmartMove = (cardId: string) => {
     if (!isMyTurn || isAnimating || isDealing) return;
@@ -469,6 +471,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
               cards={isFirstDeal && dealPhase === "init" ? [] : botPlayer.hand}
               isBot={true}
               revealingCardId={revealingCardId}
+              revealDirection="down"
               baseDelay={isFirstDeal ? delay_p2 : 0}
             />
           )}
@@ -482,7 +485,11 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           transition={{ delay: 0.2, type: "spring" }}
         >
           <Board
-            cards={board}
+            cards={
+              isFirstDeal && (dealPhase === "init" || dealPhase === "hands")
+                ? []
+                : board
+            }
             selectedCardIds={selectedBoardCardIds}
             onCardClick={handleBoardCardClick}
             baseDelay={delay_board}
