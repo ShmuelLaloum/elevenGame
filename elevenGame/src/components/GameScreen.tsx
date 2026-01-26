@@ -267,7 +267,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   };
 
   return (
-    <div className="game-container">
+    <div className="game-container" key={dealId}>
       {/* Animated Background */}
       <div className="game-background">
         <div className="game-background-image" />
@@ -459,6 +459,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
               revealingCardId={revealingCardId}
               revealDirection="down"
               baseDelay={delay_p2}
+              dealId={dealId}
             />
           )}
         </motion.div>
@@ -478,6 +479,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
             selectedCardIds={selectedBoardCardIds}
             onCardClick={handleBoardCardClick}
             baseDelay={0}
+            dealId={dealId}
             disableAnimation={!isDealing}
           />
         </motion.div>
@@ -558,6 +560,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                 onCardClick={handleHandCardClick}
                 onCardDoubleClick={handleSmartMove}
                 baseDelay={delay_p1}
+                dealId={dealId}
               />
             </div>
           )}

@@ -8,6 +8,7 @@ interface BoardProps {
   selectedCardIds: string[];
   onCardClick: (cardId: string) => void;
   baseDelay?: number;
+  dealId?: number;
   disableAnimation?: boolean;
   className?: string;
 }
@@ -17,6 +18,7 @@ export const Board = ({
   selectedCardIds,
   onCardClick,
   baseDelay = 0,
+  dealId,
   disableAnimation = false,
   className,
 }: BoardProps) => {
@@ -83,6 +85,7 @@ export const Board = ({
                 card={card}
                 isSelected={selectedCardIds.includes(card.id)}
                 onClick={() => onCardClick(card.id)}
+                dealId={dealId}
               />
             </motion.div>
           ))}

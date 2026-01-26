@@ -127,10 +127,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { players } = get();
     // Start fresh match with same player names
     const playerNames = players.map(p => p.name);
+    
+    // 1. Create new deck/board with random dealer
     const newState = GameEngine.initializeGame(playerNames);
     
+    // 2. Ensure scores are RESET to 0
+    const resetPlayers = newState.players.map(p => ({
+        ...p,
+        score: 0
+    }));
+
     set({ 
         ...newState, 
+        players: resetPlayers,
         phase: 'playing',
         round: 1,
         dealId: Date.now(),

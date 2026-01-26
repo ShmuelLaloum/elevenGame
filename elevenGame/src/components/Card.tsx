@@ -12,6 +12,7 @@ interface CardProps {
   onDoubleClick?: () => void;
   isFaceDown?: boolean;
   revealDirection?: "up" | "down";
+  dealId?: number;
   className?: string;
 }
 
@@ -37,6 +38,7 @@ export const Card = ({
   onDoubleClick,
   isFaceDown = false,
   revealDirection = "up",
+  dealId,
   className,
 }: CardProps) => {
   const Icon = suitIcons[card.suit];
@@ -73,7 +75,7 @@ export const Card = ({
 
   return (
     <motion.div
-      layoutId={`card-${card.id}`}
+      layoutId={dealId ? `card-${dealId}-${card.id}` : `card-${card.id}`}
       variants={variants}
       animate="animate"
       exit="exit"
