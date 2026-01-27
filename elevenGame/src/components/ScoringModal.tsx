@@ -18,7 +18,8 @@ interface ScoringModalProps {
 
 const AnimatedNumber = ({ value }: { value: number }) => {
   const [displayValue, setDisplayValue] = useState(value);
-  const previousValueRef = useRef(value); // Store the previous value
+  const previousValueRef = useRef(value);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     const start = previousValueRef.current;
@@ -30,28 +31,26 @@ const AnimatedNumber = ({ value }: { value: number }) => {
     }
 
     const duration = 1000;
-    const incrementTime = 20; // 50fps
-    const steps = duration / incrementTime;
-    const increment = (end - start) / steps;
+    const startTime = performance.now();
 
-    let current = start;
-    const timer = setInterval(() => {
-      current += increment;
-      // Check if we've passed the target value, considering both increasing and decreasing
-      if (
-        (increment > 0 && current >= end) ||
-        (increment < 0 && current <= end)
-      ) {
-        setDisplayValue(end);
-        clearInterval(timer);
+    const update = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      const current = start + (end - start) * progress;
+      setDisplayValue(Math.floor(current));
+
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(update);
       } else {
-        setDisplayValue(Math.floor(current));
+        setDisplayValue(end);
       }
-    }, incrementTime);
+    };
 
-    previousValueRef.current = value; // Update previous value for the next render
+    rafRef.current = requestAnimationFrame(update);
+    previousValueRef.current = value;
 
-    return () => clearInterval(timer);
+    return () => cancelAnimationFrame(rafRef.current);
   }, [value]);
 
   return <>{displayValue}</>;
@@ -69,8 +68,15 @@ export const ScoringModal = ({
 
   if (!isOpen) return null;
 
-  // Check for Game Winner (First to 60)
-  const winner = players.find((p) => p.score >= 60);
+  // Check for Game Winner (First to 62 and higher than opponent)
+  const winner = (() => {
+    const p1 = players[0];
+    const p2 = players[1];
+    if (!p1 || !p2) return null;
+    if (p1.score < 62 && p2.score < 62) return null;
+    if (p1.score === p2.score) return null; // Tie above threshold, another round
+    return p1.score > p2.score ? p1 : p2;
+  })();
   const isGrandVictory = !!winner;
   const finalGameOver = gameOver || isGrandVictory;
 
@@ -85,7 +91,7 @@ export const ScoringModal = ({
         <div
           className={clsx(
             "p-4 sm:p-6 text-center border-b border-slate-800 shrink-0",
-            isGrandVictory ? "bg-yellow-900/40" : "bg-slate-950"
+            isGrandVictory ? "bg-yellow-900/40" : "bg-slate-950",
           )}
         >
           <h2
@@ -93,14 +99,14 @@ export const ScoringModal = ({
               "text-xl sm:text-3xl font-black bg-clip-text text-transparent",
               isGrandVictory
                 ? "bg-gradient-to-r from-yellow-300 via-orange-400 to-yellow-300 animate-pulse uppercase tracking-wider"
-                : "bg-gradient-to-r from-blue-400 to-purple-400"
+                : "bg-gradient-to-r from-blue-400 to-purple-400",
             )}
           >
             {isGrandVictory
               ? `🏆 ${winner?.name} Wins! 🏆`
               : gameOver
-              ? "Game Over"
-              : "Round Complete"}
+                ? "Game Over"
+                : "Round Complete"}
           </h2>
         </div>
 
@@ -117,14 +123,14 @@ export const ScoringModal = ({
                   isWinner
                     ? "border-yellow-500 bg-yellow-900/20 shadow-[0_0_20px_rgba(234,179,8,0.2)]"
                     : p.isBot
-                    ? "bg-slate-800/50 border-slate-700"
-                    : "bg-blue-900/20 border-blue-500/30"
+                      ? "bg-slate-800/50 border-slate-700"
+                      : "bg-blue-900/20 border-blue-500/30",
                 )}
               >
                 <h3
                   className={clsx(
                     "text-xs sm:text-xl font-bold mb-1 sm:mb-2 break-words line-clamp-2",
-                    isWinner ? "text-yellow-400" : "text-slate-200"
+                    isWinner ? "text-yellow-400" : "text-slate-200",
                   )}
                 >
                   {p.name}

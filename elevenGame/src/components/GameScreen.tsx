@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, memo, useRef } from "react";
+import { useEffect, useState, useMemo, memo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ScoringModal } from "./ScoringModal";
 import { CapturedCardsModal } from "./CapturedCardsModal";
@@ -24,24 +24,51 @@ import {
 const TurnTimerCircle = memo(
   ({
     isActive,
+    isPaused,
     color,
     onExpire,
   }: {
     isActive: boolean;
+    isPaused: boolean;
     color: string;
     onExpire: () => void;
   }) => {
     const [timeLeft, setTimeLeft] = useState(10);
     const frameRef = useRef<number>(0);
     const startTimeRef = useRef<number>(0);
+    const pausedAtRef = useRef<number | null>(null);
+    const onExpireRef = useRef(onExpire);
+
+    // Always use the latest onExpire without triggering effect restart
+    useEffect(() => {
+      onExpireRef.current = onExpire;
+    }, [onExpire]);
 
     useEffect(() => {
       if (!isActive) {
         setTimeLeft(10);
+        startTimeRef.current = 0;
+        pausedAtRef.current = null;
         return;
       }
 
-      startTimeRef.current = performance.now();
+      if (isPaused) {
+        if (pausedAtRef.current === null) {
+          pausedAtRef.current = performance.now();
+        }
+        cancelAnimationFrame(frameRef.current);
+        return;
+      }
+
+      // If resuming
+      if (pausedAtRef.current !== null) {
+        const pauseDuration = performance.now() - pausedAtRef.current;
+        startTimeRef.current += pauseDuration;
+        pausedAtRef.current = null;
+      } else if (startTimeRef.current === 0) {
+        // Initial start
+        startTimeRef.current = performance.now();
+      }
 
       const tick = (now: number) => {
         const elapsed = (now - startTimeRef.current) / 1000;
@@ -50,7 +77,7 @@ const TurnTimerCircle = memo(
         setTimeLeft(remaining);
 
         if (remaining <= 0) {
-          onExpire();
+          onExpireRef.current();
         } else {
           frameRef.current = requestAnimationFrame(tick);
         }
@@ -58,7 +85,7 @@ const TurnTimerCircle = memo(
 
       frameRef.current = requestAnimationFrame(tick);
       return () => cancelAnimationFrame(frameRef.current);
-    }, [isActive, onExpire]);
+    }, [isActive, isPaused]); // Removed onExpire dependency
 
     if (!isActive) return null;
 
@@ -75,7 +102,7 @@ const TurnTimerCircle = memo(
           strokeDashoffset={(timeLeft / 10) * 100}
           pathLength="100"
           strokeLinecap="round"
-          style={{ transition: "none" }} // Animation handled by RAF
+          style={{ transition: "none" }}
         />
       </svg>
     );
@@ -118,6 +145,13 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   const [showCaptured, setShowCaptured] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScoringModalOpen, setIsScoringModalOpen] = useState(false);
+
+  // Pause Logic: Computer mode pauses on menu/captured, Friends pauses on menu. Online never pauses.
+  const isGamePaused = useMemo(() => {
+    if (category === "computer") return isMenuOpen || showCaptured;
+    if (category === "friends") return isMenuOpen;
+    return false;
+  }, [category, isMenuOpen, showCaptured]);
 
   // Sync ScoringModal state in an effect to avoid "update during render" warnings
   useEffect(() => {
@@ -201,34 +235,44 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     };
   }, [phase, round, dealId, dealOrder, isFirstDeal, t_start, t_board_abs]);
 
-  const handleSmartMove = (cardId: string) => {
-    if (!isMyTurn || isAnimating || isDealing) return;
-    const handCard = humanPlayer.hand.find((c) => c.id === cardId);
-    if (!handCard) return;
-    const validCaptures = getValidCaptures(handCard, board);
-    if (validCaptures.length > 0) {
-      playCard(
-        cardId,
-        validCaptures[0].map((c) => c.id),
-      );
-    } else {
-      playCard(cardId, []);
-    }
-  };
+  const handleSmartMove = useCallback(
+    (cardId: string) => {
+      // If it's a bot's turn, it should play its move
+      const activePlayer = players[activePlayerIndex];
+      if (!activePlayer || isAnimating || isDealing) return;
 
-  const handleTimeout = () => {
-    if (
-      activePlayerIndex === 0 &&
-      humanPlayer?.hand.length > 0 &&
-      phase === "playing" &&
-      !isDealing &&
-      !isAnimating
-    ) {
+      const handCard = activePlayer.hand.find((c) => c.id === cardId);
+      if (!handCard) return;
+      const validCaptures = getValidCaptures(handCard, board);
+      if (validCaptures.length > 0) {
+        playCard(
+          cardId,
+          validCaptures[0].map((c) => c.id),
+        );
+      } else {
+        playCard(cardId, []);
+      }
+    },
+    [players, activePlayerIndex, isAnimating, isDealing, board, playCard],
+  );
+
+  const handleTimeout = useCallback(() => {
+    if (phase !== "playing" || isDealing || isAnimating) return;
+
+    const activePlayer = players[activePlayerIndex];
+    if (activePlayer && activePlayer.hand.length > 0) {
       const playableCard =
-        humanPlayer.hand[Math.floor(Math.random() * humanPlayer.hand.length)];
+        activePlayer.hand[Math.floor(Math.random() * activePlayer.hand.length)];
       handleSmartMove(playableCard.id);
     }
-  };
+  }, [
+    phase,
+    isDealing,
+    isAnimating,
+    players,
+    activePlayerIndex,
+    handleSmartMove,
+  ]);
 
   const activePlayerIsBot = players[activePlayerIndex]?.isBot;
 
@@ -238,7 +282,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       !isDealing &&
       !isAnimating &&
       phase === "playing" &&
-      activePlayerIsBot
+      activePlayerIsBot &&
+      !isGamePaused
     ) {
       const timer = setTimeout(() => {
         const state = useGameStore.getState();
@@ -260,6 +305,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     phase,
     activePlayerIsBot,
     playCard,
+    isGamePaused,
   ]);
 
   const [bonusNotif, setBonusNotif] = useState<string | null>(null);
@@ -272,32 +318,58 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     }
   }, [lastBonusEvent]);
 
-  const handleHandCardClick = (cardId: string) => {
-    if (!isMyTurn || isAnimating || isDealing) return;
-    selectHandCard(cardId);
-  };
+  const handleHandCardClick = useCallback(
+    (cardId: string) => {
+      if (!isMyTurn || isAnimating || isDealing || isGamePaused) return;
+      selectHandCard(cardId);
+    },
+    [isMyTurn, isAnimating, isDealing, isGamePaused, selectHandCard],
+  );
 
-  const handleBoardCardClick = (cardId: string) => {
-    if (!isMyTurn || !selectedHandCardId || isAnimating || isDealing) return;
-    const currentSelection = selectedBoardCardIds;
-    const isAlreadySelected = currentSelection.includes(cardId);
-    let newSelection = isAlreadySelected
-      ? currentSelection.filter((id) => id !== cardId)
-      : [...currentSelection, cardId];
-    toggleBoardCard(cardId);
-    const handCard = humanPlayer.hand.find((c) => c.id === selectedHandCardId);
-    if (!handCard) return;
-    const validOptions = getValidCaptures(handCard, board);
-    const isSelectionMatch = validOptions.some((option) => {
-      if (option.length !== newSelection.length) return false;
-      const optionIds = option.map((c) => c.id).sort();
-      const selectionIds = [...newSelection].sort();
-      return optionIds.every((val, index) => val === selectionIds[index]);
-    });
-    if (isSelectionMatch) {
-      playCard(selectedHandCardId, newSelection);
-    }
-  };
+  const handleBoardCardClick = useCallback(
+    (cardId: string) => {
+      if (
+        !isMyTurn ||
+        !selectedHandCardId ||
+        isAnimating ||
+        isDealing ||
+        isGamePaused
+      )
+        return;
+      const currentSelection = selectedBoardCardIds;
+      const isAlreadySelected = currentSelection.includes(cardId);
+      let newSelection = isAlreadySelected
+        ? currentSelection.filter((id) => id !== cardId)
+        : [...currentSelection, cardId];
+      toggleBoardCard(cardId);
+      const handCard = humanPlayer.hand.find(
+        (c) => c.id === selectedHandCardId,
+      );
+      if (!handCard) return;
+      const validOptions = getValidCaptures(handCard, board);
+      const isSelectionMatch = validOptions.some((option) => {
+        if (option.length !== newSelection.length) return false;
+        const optionIds = option.map((c) => c.id).sort();
+        const selectionIds = [...newSelection].sort();
+        return optionIds.every((val, index) => val === selectionIds[index]);
+      });
+      if (isSelectionMatch) {
+        playCard(selectedHandCardId, newSelection);
+      }
+    },
+    [
+      isMyTurn,
+      selectedHandCardId,
+      isAnimating,
+      isDealing,
+      isGamePaused,
+      selectedBoardCardIds,
+      toggleBoardCard,
+      humanPlayer.hand,
+      board,
+      playCard,
+    ],
+  );
 
   const particles = useMemo(
     () =>
@@ -360,6 +432,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                     !isAnimating &&
                     !revealingCardId
                   }
+                  isPaused={isGamePaused}
                   color="#ef4444"
                   onExpire={handleTimeout}
                 />
@@ -417,6 +490,11 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                           return;
                         }
                         setShouldRestartMatchmaking(true);
+                        setIsMenuOpen(false);
+                        resetGame();
+                        onExit?.();
+                      } else if (category === "friends") {
+                        // Logic: quitting friend mode exits for everyone (simulated)
                         setIsMenuOpen(false);
                         resetGame();
                         onExit?.();
@@ -526,6 +604,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                       !isAnimating &&
                       !revealingCardId
                     }
+                    isPaused={isGamePaused}
                     color="#10b981"
                     onExpire={handleTimeout}
                   />
