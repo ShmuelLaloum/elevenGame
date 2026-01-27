@@ -91,14 +91,6 @@ export const Board = ({
           ))}
         </AnimatePresence>
       </div>
-
-      {cards.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="text-emerald-950/20 font-black text-6xl uppercase tracking-widest rotate-12 select-none">
-            Empty
-          </span>
-        </div>
-      )}
     </div>
   );
 };

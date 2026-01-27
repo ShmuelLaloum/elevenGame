@@ -8,6 +8,7 @@ import { Shop } from "./components/pages/Shop";
 import { Store } from "./components/pages/Store";
 import { Navbar } from "./components/navigation/Navbar";
 import { GlobalModals } from "./components/modals/GlobalModals";
+import { SwipeNavigation } from "./components/navigation/SwipeNavigation";
 import { useGameStore } from "./store/gameStore";
 import { useUIStore } from "./store/uiStore";
 
@@ -19,7 +20,7 @@ function App() {
   const handleStart = (
     category: string,
     teamSize: string,
-    opponentNames?: string[]
+    opponentNames?: string[],
   ) => {
     // Set up players based on category and team size
     let players: string[] = [];
@@ -52,27 +53,29 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="relative w-full h-full bg-slate-900 overflow-hidden">
-        {isNavbarVisible && !hasStarted && <Navbar />}
-        <GlobalModals />
-        <main className="w-full h-full">
-          {hasStarted ? (
-            <GameScreen onExit={() => setHasStarted(false)} />
-          ) : (
-            <Routes>
-              <Route
-                path="/"
-                element={<PartyLobby onStartGame={handleStart} />}
-              />
-              <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/locker" element={<Locker />} />
-              <Route path="/shop" element={<Shop />} />
-              <Route path="/store" element={<Store />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          )}
-        </main>
-      </div>
+      <SwipeNavigation disabled={hasStarted}>
+        <div className="relative w-full h-full bg-slate-900 overflow-hidden">
+          {isNavbarVisible && !hasStarted && <Navbar />}
+          <GlobalModals />
+          <main className="w-full h-full">
+            {hasStarted ? (
+              <GameScreen onExit={() => setHasStarted(false)} />
+            ) : (
+              <Routes>
+                <Route
+                  path="/"
+                  element={<PartyLobby onStartGame={handleStart} />}
+                />
+                <Route path="/leaderboard" element={<Leaderboard />} />
+                <Route path="/locker" element={<Locker />} />
+                <Route path="/shop" element={<Shop />} />
+                <Route path="/store" element={<Store />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            )}
+          </main>
+        </div>
+      </SwipeNavigation>
     </BrowserRouter>
   );
 }
