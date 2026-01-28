@@ -393,7 +393,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
       name:
         username ||
         `Player ${invitedPlayers.filter((p) => p !== null).length + 2}`,
-      isReady: false,
+      isReady: true,
       isHost: false,
       isBot: false,
     };

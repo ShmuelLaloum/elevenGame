@@ -615,6 +615,122 @@
   position: relative;
   z-index: 10;
   min-height: 0;
+  transition: padding-right 0.3s ease;
+}
+
+.game-board-area.is-2v2-active {
+  position: absolute;
+  left: 2px; /* 2px gap from left */
+  top: 0;
+  /* Maximize width from left to right, allowing cards to move under/over profile area */
+  width: calc(100% - 10px);
+  height: 100%;
+  padding: 0 !important;
+  box-sizing: border-box;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40; /* Above sidebar, but below avatars if needed */
+}
+
+.game-board-area.is-2v2-active > * {
+  pointer-events: auto;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 2V2 Sidebar - Slim Version */
+.game-2v2-sidebar {
+  position: fixed;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: clamp(50px, 7vw, 75px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(12px);
+  padding: 8px 2px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: -2px 0 15px rgba(0, 0, 0, 0.4);
+}
+
+.game-2v2-team-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 1px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.game-2v2-team-score .label {
+  font-size: 6px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.game-2v2-team-score.team-0 {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.game-2v2-team-score.team-1 {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.game-2v2-captured-btn {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  border-radius: 12px;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.game-2v2-captured-btn:hover {
+  background: #334155;
+  border-color: #60a5fa;
+  transform: scale(1.02);
+}
+
+.game-2v2-captured-btn .count {
+  font-size: clamp(16px, 2vw, 20px);
+  font-weight: 900;
+  color: white;
+}
+
+.game-2v2-captured-btn .label {
+  font-size: 7px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+/* 2v2 Hand Styling */
+.game-hand-2v2 {
+  scale: 0.75;
+  transform-origin: center;
+  margin: 0 -10px; /* Force spacing */
+}
+
+.game-hand-2v2 .flex {
+  justify-content: center;
+  gap: 8px; /* Horizontal gap between cards */
 }
 
 /* Game Hand Areas */

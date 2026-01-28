@@ -1,4 +1,4 @@
-import type { Player } from "../types";
+import type { Player, TeamInfo, Card } from "../types";
 
 export interface ScoreBreakdown {
   clubsCount: number;
@@ -11,40 +11,33 @@ export interface ScoreBreakdown {
   clubsPoints: number; // Added to distinguish the bonus
 }
 
-export const calculateScore = (
-  player: Player
+// Calculate score from a set of captured cards (shared by player and team scoring)
+const calculateScoreFromCards = (
+  capturedCards: Card[],
+  roundScopas: number,
+  bonusMultiplier: number = 5, // 5 for 1v1, 10 for 2v2
 ): ScoreBreakdown => {
-  const { capturedCards } = player;
-
   const clubsCount = capturedCards.filter((c) => c.suit === "clubs").length;
   const aces = capturedCards.filter((c) => c.rank === "A").length;
   const jacks = capturedCards.filter((c) => c.rank === "J").length;
 
   const bigCasino = capturedCards.some(
-    (c) => c.rank === "10" && c.suit === "diamonds"
+    (c) => c.rank === "10" && c.suit === "diamonds",
   )
     ? 3
     : 0;
-  // User specified 2 CLUBS for 2 points (usually it's 2 Spades, but following user request for 2 Clubs)
   const littleCasino = capturedCards.some(
-    (c) => c.rank === "2" && c.suit === "clubs"
+    (c) => c.rank === "2" && c.suit === "clubs",
   )
     ? 2
     : 0;
 
-  // Clubs Majority Points ( > 7 clubs) -> 7 points
-  // Wait, standard deck has 13 clubs. 7 is majority.
-  // We calculate this point *here* or relative to opponent?
-  // User said "The player/team with 7+ clubs gets 7 points".
-  // So if I have 7, I get 7.
-
-  // Clubs Majority Points ( > 7 clubs) -> 7 points
+  // Clubs Majority Points (>= 7 clubs) -> 7 points
   const clubsPoints = clubsCount >= 7 ? 7 : 0;
 
-  // Scopa Calculation
-  // We use the stored roundScopas from the player object
-  const currentScopas = player.roundScopas || 0;
-  const scopaPoints = currentScopas * 5; // User said "bonus... add 5" (implied per bonus)
+  // Scopa Points: 5 points per bonus in 1v1, 10 points in 2v2
+  const currentScopas = roundScopas || 0;
+  const scopaPoints = currentScopas * bonusMultiplier;
 
   // Total Score
   const total =
@@ -62,13 +55,31 @@ export const calculateScore = (
   };
 };
 
+export const calculateScore = (player: Player): ScoreBreakdown => {
+  return calculateScoreFromCards(player.capturedCards, player.roundScopas, 5);
+};
+
+export const calculateTeamScore = (team: TeamInfo): ScoreBreakdown => {
+  // Teams use 10 points per scopa bonus
+  return calculateScoreFromCards(team.capturedCards, team.roundScopas, 10);
+};
+
 export const determineWinnerPoints = (p1: Player, p2: Player) => {
-  // We no longer pass explicit scopa points, as they are part of the Player state now
-  const s1 = calculateScore(p1); // Second arg ignored or remove from sig
+  const s1 = calculateScore(p1);
   const s2 = calculateScore(p2);
 
   return {
     p1: { ...s1, grandTotal: s1.total },
     p2: { ...s2, grandTotal: s2.total },
+  };
+};
+
+export const determineTeamWinnerPoints = (team1: TeamInfo, team2: TeamInfo) => {
+  const s1 = calculateTeamScore(team1);
+  const s2 = calculateTeamScore(team2);
+
+  return {
+    team1: { ...s1, grandTotal: s1.total },
+    team2: { ...s2, grandTotal: s2.total },
   };
 };

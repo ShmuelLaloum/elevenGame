@@ -20,6 +20,17 @@ export interface Player {
   score: number;
   isBot: boolean;
   roundScopas: number; // Cumulative bonuses for the current round
+  teamIndex?: number; // 0 or 1 - which team this player belongs to (only in 2v2)
+}
+
+export type GameMode = '1v1' | '2v2';
+
+export interface TeamInfo {
+  teamIndex: number; // 0 or 1
+  score: number; // Shared team score
+  roundScopas: number; // Shared team bonuses
+  capturedCards: Card[]; // Shared captured cards pile
+  playerIds: string[]; // IDs of players in this team
 }
 
 export interface GameState {
@@ -37,4 +48,6 @@ export interface GameState {
   lastBonusEvent?: { playerId: string; timestamp: number }; // Unique trigger for UI animations
   dealId?: number; // Unique ID to trigger deal animations
   dealOrder?: number; // 0 or 1, identifies who gets cards first this round
+  gameMode?: GameMode; // '1v1' or '2v2' - defaults to '1v1' for backwards compatibility
+  teams?: TeamInfo[]; // Only populated in 2v2 mode
 }

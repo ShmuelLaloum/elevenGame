@@ -11,6 +11,7 @@ import { GlobalModals } from "./components/modals/GlobalModals";
 import { SwipeNavigation } from "./components/navigation/SwipeNavigation";
 import { useGameStore } from "./store/gameStore";
 import { useUIStore } from "./store/uiStore";
+import type { GameMode } from "./types";
 
 function App() {
   const [hasStarted, setHasStarted] = useState(false);
@@ -23,19 +24,23 @@ function App() {
     opponentNames?: string[],
   ) => {
     // Set up players based on category and team size
+    // For 2v2: Player order is [You, Opponent1, Teammate, Opponent2]
+    // This ensures players 0,2 are on team 0 (diagonal) and 1,3 are on team 1 (diagonal)
     let players: string[] = [];
 
     if (category === "computer") {
       if (teamSize === "1v1") {
         players = ["Player 1", "Bot"];
       } else {
-        // 2v2 vs computer
-        players = ["Player 1", "Bot 1", "Player 1 Teammate", "Bot 2"];
+        // 2v2 vs computer: You and Teammate Bot vs Bot 1 and Bot 2
+        // Order: [You, Bot1, Teammate Bot, Bot2] -> teams: 0:[0,2], 1:[1,3]
+        players = ["Player 1", "Bot 1", "Teammate Bot", "Bot 2"];
       }
     } else if (category === "friends") {
       if (teamSize === "1v1") {
         players = ["Player 1", "Player 2"];
       } else {
+        // 2v2 friends: [You, Opponent1, Teammate, Opponent2]
         players = ["Player 1", "Player 2", "Player 3", "Player 4"];
       }
     } else {
@@ -43,11 +48,14 @@ function App() {
       if (teamSize === "1v1") {
         players = ["Player 1", "Opponent"];
       } else {
-        players = ["Player 1", "Teammate", "Opponent 1", "Opponent 2"];
+        // 2v2 online: [You, Opponent1, Teammate, Opponent2]
+        players = ["Player 1", "Opponent 1", "Teammate", "Opponent 2"];
       }
     }
 
-    initializeGame(players, category, opponentNames);
+    // Pass teamSize as GameMode to properly initialize 2v2 game state
+    const gameMode = teamSize as GameMode;
+    initializeGame(players, category, opponentNames, gameMode);
     setHasStarted(true);
   };
 

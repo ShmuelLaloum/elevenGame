@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import type { GameState } from '../types';
+import type { GameState, GameMode } from '../types';
 import { GameEngine } from '../engine/game';
 import { audio } from '../utils/audio';
 
 interface GameStore extends GameState {
   // Actions
-  initializeGame: (playerNames: string[], category?: string, opponentNames?: string[]) => void;
+  initializeGame: (playerNames: string[], category?: string, opponentNames?: string[], teamSize?: GameMode) => void;
   playCard: (handCardId: string, captureCardIds: string[]) => void;
   resetGame: () => void; // Go to Home
   restartMatch: () => void; // Restart with same players
@@ -44,8 +44,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   selectedBoardCardIds: [],
   isAnimating: false,
 
-  initializeGame: (playerNames, category, opponentNames) => {
-    const newState = GameEngine.initializeGame(playerNames);
+  initializeGame: (playerNames, category, opponentNames, teamSize) => {
+    // Determine game mode from teamSize or number of players
+    const gameMode: GameMode = teamSize || (playerNames.length > 2 ? '2v2' : '1v1');
+    const newState = GameEngine.initializeGame(playerNames, undefined, gameMode);
     
     if (opponentNames && opponentNames.length > 0) {
       newState.players = newState.players.map((p, i) => {
@@ -109,22 +111,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   restartMatch: () => {
-    const { players } = get();
+    const { players, gameMode } = get();
     // Start fresh match with same player names
     const playerNames = players.map(p => p.name);
     
-    // 1. Create new deck/board with random dealer
-    const newState = GameEngine.initializeGame(playerNames);
+    // 1. Create new deck/board with random dealer, preserve game mode
+    const newState = GameEngine.initializeGame(playerNames, undefined, gameMode);
     
-    // 2. Ensure scores are RESET to 0
+    // 2. Ensure scores are RESET to 0 (for players, teams are reset in initializeGame)
     const resetPlayers = newState.players.map(p => ({
         ...p,
+        score: 0
+    }));
+
+    // 3. Reset team scores if in 2v2 mode
+    const resetTeams = newState.teams?.map(t => ({
+        ...t,
         score: 0
     }));
 
     set({ 
         ...newState, 
         players: resetPlayers,
+        teams: resetTeams,
         phase: 'playing',
         round: 1,
         dealId: Date.now(),
@@ -136,24 +145,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   nextRound: () => {
-    const { players, dealOrder: oldDealOrder } = get();
+    const { players, dealOrder: oldDealOrder, gameMode, teams } = get();
     
     // Rotate dealer for the next deck cycle
     const nextDealOrder = ((oldDealOrder ?? 0) + 1) % players.length;
     const playerNames = players.map(p => p.name);
     
-    // 1. Create new deck/board with rotated dealer
-    const newState = GameEngine.initializeGame(playerNames, nextDealOrder);
+    // 1. Create new deck/board with rotated dealer, preserve game mode
+    const newState = GameEngine.initializeGame(playerNames, nextDealOrder, gameMode);
     
-    // 2. Restore previous scores 
+    // 2. Restore previous scores (for 1v1 mode)
     const continuedPlayers = newState.players.map((p, i) => ({
         ...p,
         score: players[i].score // Keep cumulative score
     }));
 
+    // 3. Restore team scores for 2v2 mode
+    const continuedTeams = newState.teams?.map((t, i) => ({
+        ...t,
+        score: teams?.[i]?.score || 0 // Keep cumulative team score
+    }));
+
     set({
         ...newState,
         players: continuedPlayers,
+        teams: continuedTeams,
         round: 1,
         dealId: Date.now(),
         selectedHandCardId: null,

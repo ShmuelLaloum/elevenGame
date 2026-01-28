@@ -1,6 +1,20 @@
-import type { GameState, Card, Player } from "../types";
+import type { GameState, Card, Player, GameMode, TeamInfo } from "../types";
 import { shuffleDeck, createDeck } from "../utils/deck";
-import { determineWinnerPoints } from "./scoring";
+import { determineWinnerPoints, determineTeamWinnerPoints } from "./scoring";
+
+// Helper to get team index for a player
+const getPlayerTeamIndex = (
+  playerIndex: number,
+  playerCount: number,
+): number => {
+  // In 2v2: players 0,2 are on team 0, players 1,3 are on team 1
+  // This places teammates diagonally opposite each other
+  if (playerCount === 4) {
+    return playerIndex % 2;
+  }
+  // In 1v1: each player is on their own "team"
+  return playerIndex;
+};
 
 export class GameEngine {
   /*
@@ -15,6 +29,7 @@ export class GameEngine {
   ): GameState {
     const activePlayer = state.players[state.activePlayerIndex];
     const handCard = activePlayer.hand.find((c) => c.id === handCardId);
+    const is2v2 = state.gameMode === "2v2";
 
     if (!handCard) throw new Error("Card not in hand");
 
@@ -38,6 +53,27 @@ export class GameEngine {
       return p;
     });
 
+    // Also update team captured cards in 2v2 mode
+    let nextTeams = state.teams
+      ? [
+          ...state.teams.map((t) => ({
+            ...t,
+            capturedCards: [...t.capturedCards],
+          })),
+        ]
+      : undefined;
+    if (is2v2 && nextTeams && isCapture) {
+      const teamIndex = getPlayerTeamIndex(
+        state.activePlayerIndex,
+        state.players.length,
+      );
+      nextTeams[teamIndex].capturedCards = [
+        ...nextTeams[teamIndex].capturedCards,
+        handCard,
+        ...captureCards,
+      ];
+    }
+
     let nextBoard = state.board;
     if (isCapture) {
       nextBoard = nextBoard.filter((c) => !captureCardIds.includes(c.id));
@@ -46,39 +82,54 @@ export class GameEngine {
     }
 
     // Scopa Check
-    // If board is empty after capture, AND it was NOT a Jack (Unless Jack matches Jack only, but broad Jack takes all rule usually doesn't count as Scopa)
-    // User: "Not by Prince". So if handCard.rank === 'J', no Scopa.
+    // If board is empty after capture, AND it was NOT a Jack
     let nextActiveScopaIndex = state.activeScopaPlayerIndex;
 
     if (isCapture && nextBoard.length === 0 && handCard.rank !== "J") {
       // Scopa Event!
-      // Offset Logic:
-      // Opponent has bonus? Decrement them. Else increment me.
+      if (is2v2 && nextTeams) {
+        // 2v2 Mode: Team-based scopa logic (10 points per bonus)
+        const myTeamIndex = getPlayerTeamIndex(
+          state.activePlayerIndex,
+          state.players.length,
+        );
+        const opponentTeamIndex = myTeamIndex === 0 ? 1 : 0;
 
-      const opponentIndex =
-        (state.activePlayerIndex + 1) % state.players.length;
-      const opponent = nextPlayers[opponentIndex];
-      const me = nextPlayers[state.activePlayerIndex];
-
-      if (opponent.roundScopas > 0) {
-        // Offset! Remove 1 from opponent.
-        nextPlayers[opponentIndex] = {
-          ...opponent,
-          roundScopas: opponent.roundScopas - 1,
-        };
-        // Me stays same.
+        if (nextTeams[opponentTeamIndex].roundScopas > 0) {
+          // Offset! Remove 1 from opponent team
+          nextTeams[opponentTeamIndex] = {
+            ...nextTeams[opponentTeamIndex],
+            roundScopas: nextTeams[opponentTeamIndex].roundScopas - 1,
+          };
+        } else {
+          // Add to my team
+          nextTeams[myTeamIndex] = {
+            ...nextTeams[myTeamIndex],
+            roundScopas: nextTeams[myTeamIndex].roundScopas + 1,
+          };
+        }
       } else {
-        // Add to me
-        nextPlayers[state.activePlayerIndex] = {
-          ...me,
-          roundScopas: me.roundScopas + 1,
-        };
+        // 1v1 Mode: Original per-player logic (5 points per bonus)
+        const opponentIndex =
+          (state.activePlayerIndex + 1) % state.players.length;
+        const opponent = nextPlayers[opponentIndex];
+        const me = nextPlayers[state.activePlayerIndex];
+
+        if (opponent.roundScopas > 0) {
+          nextPlayers[opponentIndex] = {
+            ...opponent,
+            roundScopas: opponent.roundScopas - 1,
+          };
+        } else {
+          nextPlayers[state.activePlayerIndex] = {
+            ...me,
+            roundScopas: me.roundScopas + 1,
+          };
+        }
       }
 
       // Trigger UI Event with unique timestamp
       newBonusEvent = { playerId: activePlayer.id, timestamp: Date.now() };
-
-      // Update tracker
       nextActiveScopaIndex = state.activePlayerIndex;
     }
 
@@ -109,14 +160,14 @@ export class GameEngine {
           deck: nextDeck,
           players: dealResult.players,
           board: nextBoard,
-          activePlayerIndex: state.dealOrder ?? 0, // First person dealt starts again? User: "receives first starts first"
+          teams: nextTeams,
+          activePlayerIndex: state.dealOrder ?? 0,
           lastCapturingPlayerIndex,
-          round: state.round + 1, // sub-round
+          round: state.round + 1,
           dealOrder: state.dealOrder,
         };
       } else {
-        // Deck empty, Round Over (Game Over or just End of Deal?)
-        // If deck is empty and hands are empty, standard round is over.
+        // Deck empty, Round Over
         // Assign remaining board cards to last capturer
         if (nextBoard.length > 0 && lastCapturingPlayerIndex !== null) {
           const lastCapturer = nextPlayers[lastCapturingPlayerIndex];
@@ -124,25 +175,44 @@ export class GameEngine {
             ...lastCapturer.capturedCards,
             ...nextBoard,
           ];
+
+          // Also add to team in 2v2
+          if (is2v2 && nextTeams) {
+            const teamIndex = getPlayerTeamIndex(
+              lastCapturingPlayerIndex,
+              state.players.length,
+            );
+            nextTeams[teamIndex].capturedCards = [
+              ...nextTeams[teamIndex].capturedCards,
+              ...nextBoard,
+            ];
+          }
+
           nextBoard = [];
-          // Update players array
           nextPlayers[lastCapturingPlayerIndex] = lastCapturer;
         }
         nextPhase = "scoring";
 
-        // Calculate Round Scores and Update Total
-        const p1 = nextPlayers[0];
-        const p2 = nextPlayers[1];
-
-        // Scopa Bonus Calculation
-        // Now calculated within each player's structure via roundScopas
-
-        // Calculate breakdown
-        const results = determineWinnerPoints(p1, p2);
-
-        // Update Players with new totals
-        nextPlayers[0] = { ...p1, score: p1.score + results.p1.total };
-        nextPlayers[1] = { ...p2, score: p2.score + results.p2.total };
+        // Calculate Round Scores
+        if (is2v2 && nextTeams) {
+          // 2v2: Calculate team scores
+          const results = determineTeamWinnerPoints(nextTeams[0], nextTeams[1]);
+          nextTeams[0] = {
+            ...nextTeams[0],
+            score: nextTeams[0].score + results.team1.total,
+          };
+          nextTeams[1] = {
+            ...nextTeams[1],
+            score: nextTeams[1].score + results.team2.total,
+          };
+        } else {
+          // 1v1: Original per-player scoring
+          const p1 = nextPlayers[0];
+          const p2 = nextPlayers[1];
+          const results = determineWinnerPoints(p1, p2);
+          nextPlayers[0] = { ...p1, score: p1.score + results.p1.total };
+          nextPlayers[1] = { ...p2, score: p2.score + results.p2.total };
+        }
       }
     }
 
@@ -151,12 +221,10 @@ export class GameEngine {
       deck: nextDeck,
       players: nextPlayers,
       board: nextBoard,
+      teams: nextTeams,
       activePlayerIndex: allHandsEmpty
         ? state.activePlayerIndex
-        : (state.activePlayerIndex + 1) % state.players.length, // Only switch if not dealing? Or dealing handles switching?
-      // Usually after dealing, same player continues? Or dealer changes?
-      // Simplified: Turn passes after every move.
-      // Let's keep simple turn rotation.
+        : (state.activePlayerIndex + 1) % state.players.length,
       phase: nextPhase,
       lastCapturingPlayerIndex,
       activeScopaPlayerIndex: nextActiveScopaIndex,
@@ -176,7 +244,7 @@ export class GameEngine {
     let currentDeck = [...deck];
     const newPlayers = [...players];
 
-    // Sort player indices based on deal order: [dealOrder, (dealOrder + 1) % len]
+    // Sort player indices based on deal order
     const indices = players.map((_, i) => (i + dealOrder) % players.length);
 
     indices.forEach((idx) => {
@@ -196,21 +264,19 @@ export class GameEngine {
   static initializeGame(
     playerNames: string[],
     forcedDealOrder?: number,
+    gameMode?: GameMode,
   ): GameState {
     let deck = shuffleDeck(createDeck());
+    const is2v2 = gameMode === "2v2" || playerNames.length === 4;
+    const actualGameMode: GameMode = is2v2 ? "2v2" : "1v1";
+
     const dealOrder =
       forcedDealOrder !== undefined
         ? forcedDealOrder
-        : Math.random() > 0.5
-          ? 0
-          : 1;
+        : Math.floor(Math.random() * playerNames.length);
 
-    // Deal 4 to board
-    const board: Card[] = [];
-    for (let i = 0; i < 4; i++) board.push(deck.shift()!);
-
-    // Create Players
-    let players: Player[] = playerNames.map((name) => ({
+    // Create players first (empty hands)
+    let players: Player[] = playerNames.map((name, index) => ({
       id: name,
       name,
       hand: [],
@@ -218,21 +284,62 @@ export class GameEngine {
       score: 0,
       isBot: name === "Bot" || name.includes("Bot"),
       roundScopas: 0,
+      teamIndex: is2v2
+        ? getPlayerTeamIndex(index, playerNames.length)
+        : undefined,
     }));
 
-    // Deal 4 to each player in order
-    const dealRes = this.dealCards(deck, players, 4, dealOrder);
+    // Sequential Dealing for 2v2: Player by Player (4 cards each)
+    const dealIndices = players.map((_, i) => (i + dealOrder) % players.length);
+
+    dealIndices.forEach((idx) => {
+      const p = players[idx];
+      const newHand: Card[] = [];
+      for (let i = 0; i < 4; i++) {
+        if (deck.length > 0) newHand.push(deck.shift()!);
+      }
+      players[idx] = { ...p, hand: newHand };
+    });
+
+    // Deal 4 to board AFTER players (as requested)
+    const board: Card[] = [];
+    for (let i = 0; i < 4; i++) {
+      if (deck.length > 0) board.push(deck.shift()!);
+    }
+
+    // Create teams for 2v2 mode
+    let teams: TeamInfo[] | undefined;
+    if (is2v2) {
+      teams = [
+        {
+          teamIndex: 0,
+          score: 0,
+          roundScopas: 0,
+          capturedCards: [],
+          playerIds: players.filter((p) => p.teamIndex === 0).map((p) => p.id),
+        },
+        {
+          teamIndex: 1,
+          score: 0,
+          roundScopas: 0,
+          capturedCards: [],
+          playerIds: players.filter((p) => p.teamIndex === 1).map((p) => p.id),
+        },
+      ];
+    }
 
     return {
-      deck: dealRes.deck,
-      players: dealRes.players,
+      deck: deck,
+      players: players,
       board,
-      activePlayerIndex: dealOrder, // First person dealt starts
+      activePlayerIndex: dealOrder,
       round: 1,
       phase: "playing",
       lastCapturingPlayerIndex: null,
       activeScopaPlayerIndex: null,
       dealOrder,
+      gameMode: actualGameMode,
+      teams,
     };
   }
 }

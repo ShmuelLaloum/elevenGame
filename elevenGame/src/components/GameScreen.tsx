@@ -7,6 +7,7 @@ import { useUserStore } from "../store/userStore";
 import { useUIStore } from "../store/uiStore";
 import { Hand } from "./Hand";
 import { Board } from "./Board";
+import { Game2v2Layout } from "./Game2v2Layout";
 import { getValidCaptures } from "../engine/rules";
 import { getBestMove } from "../engine/bot";
 import { audio } from "../utils/audio";
@@ -21,7 +22,7 @@ import {
 } from "lucide-react";
 
 // Optimized sub-component to isolate timer updates from the main game loop
-const TurnTimerCircle = memo(
+export const TurnTimerCircle = memo(
   ({
     isActive,
     isPaused,
@@ -130,6 +131,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   const isAnimating = useGameStore((s) => s.isAnimating);
   const dealId = useGameStore((s) => s.dealId);
   const storeDealOrder = useGameStore((s) => s.dealOrder);
+  const gameMode = useGameStore((s) => s.gameMode);
+  const teams = useGameStore((s) => s.teams);
 
   const lightning = useUserStore((s) => s.lightning);
   const setShouldRestartMatchmaking = useUIStore(
@@ -137,6 +140,10 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   );
   const openAlertModal = useUIStore((s) => s.openAlertModal);
 
+  // Determine if this is a 2v2 game
+  const is2v2 = gameMode === "2v2" || players.length === 4;
+
+  // For 1v1 mode (unchanged)
   const humanPlayer = players[0];
   const botPlayer = players[1];
 
@@ -172,7 +179,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   const DEAL_DURATION = 0.8;
 
   const t_start = INTRO_DELAY;
-  const t_board_abs = t_start + DEAL_DURATION * 2;
+  // In 2v2, we deal to 4 players before the board. In 1v1, only 2 players.
+  const t_board_abs = t_start + (is2v2 ? 4 : 2) * DEAL_DURATION;
   const isFirstDeal = round === 1;
 
   const delay_p1 = dealOrder === 0 ? 0 : DEAL_DURATION;
@@ -224,10 +232,22 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       scheduleAudio(boardStart);
     } else {
       t_timeouts.push(setTimeout(() => setIsDealing(false), 2500));
+      // For subsequent deals, deal order matters
       const p1Start = (dealOrder === 0 ? 0 : DEAL_DURATION) * 1000;
       const p2Start = (dealOrder === 1 ? 0 : DEAL_DURATION) * 1000;
-      scheduleAudio(p1Start);
-      scheduleAudio(p2Start);
+
+      if (is2v2) {
+        // Also schedule audio for the other 2 players in 2v2
+        const p3Start = (dealOrder === 2 ? 0 : DEAL_DURATION) * 1000;
+        const p4Start = (dealOrder === 3 ? 0 : DEAL_DURATION) * 1000;
+        scheduleAudio(p1Start);
+        scheduleAudio(p2Start);
+        scheduleAudio(p3Start);
+        scheduleAudio(p4Start);
+      } else {
+        scheduleAudio(p1Start);
+        scheduleAudio(p2Start);
+      }
     }
 
     return () => {
@@ -306,6 +326,7 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     activePlayerIsBot,
     playCard,
     isGamePaused,
+    gameMode,
   ]);
 
   const [bonusNotif, setBonusNotif] = useState<string | null>(null);
@@ -398,58 +419,16 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       </div>
 
       <div className="game-scale-wrapper">
+        {/* Menu button - shared between 1v1 and 2v2 */}
         <motion.div
-          className="game-top-bar"
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
+          className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="game-player-info self-start">
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
-                <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg">
-                  <Sparkles size={12} className="text-yellow-400" />
-                  <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
-                    {botPlayer?.roundScopas || 0}
-                  </span>
-                </div>
-                <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg">
-                  <Trophy size={12} className="text-blue-400" />
-                  <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
-                    {botPlayer?.score || 0}
-                  </span>
-                </div>
-              </div>
-              <div className="game-player-avatar-wrapper">
-                <div className="game-player-avatar game-player-avatar-opponent !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
-                  {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
-                </div>
-                <TurnTimerCircle
-                  isActive={
-                    !isMyTurn &&
-                    phase === "playing" &&
-                    !isDealing &&
-                    !isAnimating &&
-                    !revealingCardId
-                  }
-                  isPaused={isGamePaused}
-                  color="#ef4444"
-                  onExpire={handleTimeout}
-                />
-              </div>
-              <h3 className="game-player-name font-bold w-full text-center truncate">
-                {botPlayer?.name || "Opponent"}
-              </h3>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 self-start mt-2">
-            <button
-              onClick={() => setIsMenuOpen(true)}
-              className="game-menu-btn"
-            >
-              <MenuIcon size={20} />
-            </button>
-          </div>
+          <button onClick={() => setIsMenuOpen(true)} className="game-menu-btn">
+            <MenuIcon size={20} />
+          </button>
         </motion.div>
 
         <AnimatePresence>
@@ -494,7 +473,6 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                         resetGame();
                         onExit?.();
                       } else if (category === "friends") {
-                        // Logic: quitting friend mode exits for everyone (simulated)
                         setIsMenuOpen(false);
                         resetGame();
                         onExit?.();
@@ -531,115 +509,197 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           )}
         </AnimatePresence>
 
-        <motion.div
-          className="game-opponent-hand"
-          initial={{ y: -100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          {botPlayer && (
-            <Hand
-              cards={isFirstDeal && dealPhase === "init" ? [] : botPlayer.hand}
-              isBot={true}
-              revealingCardId={revealingCardId}
-              revealDirection="down"
-              baseDelay={delay_p2}
-              dealId={dealId}
-            />
-          )}
-        </motion.div>
-
-        <motion.div
-          className="game-board-area"
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2, type: "spring" }}
-        >
-          <Board
-            cards={
-              isFirstDeal && (dealPhase === "init" || dealPhase === "hands")
-                ? []
-                : board
-            }
-            selectedCardIds={selectedBoardCardIds}
-            onCardClick={handleBoardCardClick}
-            baseDelay={0}
+        {/* 2v2 Layout */}
+        {is2v2 && teams && teams.length === 2 ? (
+          <Game2v2Layout
+            players={players}
+            teams={teams}
+            board={board}
+            activePlayerIndex={activePlayerIndex}
+            humanPlayerIndex={0}
+            selectedHandCardId={selectedHandCardId}
+            selectedBoardCardIds={selectedBoardCardIds}
+            revealingCardId={revealingCardId}
+            dealPhase={dealPhase}
+            isFirstDeal={isFirstDeal}
+            isDealing={isDealing}
+            isAnimating={isAnimating}
+            isPaused={isGamePaused}
+            phase={phase}
             dealId={dealId}
-            disableAnimation={!isDealing}
+            dealOrder={dealOrder}
+            onHandCardClick={handleHandCardClick}
+            onHandCardDoubleClick={handleSmartMove}
+            onBoardCardClick={handleBoardCardClick}
+            onTimeout={handleTimeout}
+            onShowCaptured={() => {
+              if (!isAnimating) setShowCaptured(true);
+            }}
           />
-        </motion.div>
-
-        <motion.div
-          className="game-player-hand"
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          {humanPlayer && (
-            <div className="relative flex flex-col items-center gap-4 w-full px-4">
-              <div className="fixed right-2 sm:right-6 lg:right-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center gap-1 z-[60] max-w-[80px] sm:max-w-[100px] lg:max-w-[120px]">
-                <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
-                  <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
-                    <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
-                      {humanPlayer?.roundScopas || 0}
-                    </span>
-                    <Sparkles size={12} className="text-yellow-400" />
+        ) : (
+          /* 1v1 Layout - UNCHANGED from original */
+          <>
+            <motion.div
+              className="game-top-bar"
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div className="game-player-info self-start">
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
+                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg">
+                      <Sparkles size={12} className="text-yellow-400" />
+                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
+                        {botPlayer?.roundScopas || 0}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg">
+                      <Trophy size={12} className="text-blue-400" />
+                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
+                        {botPlayer?.score || 0}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
-                    <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
-                      {humanPlayer?.score || 0}
-                    </span>
-                    <Trophy size={12} className="text-blue-400" />
+                  <div className="game-player-avatar-wrapper">
+                    <div className="game-player-avatar game-player-avatar-opponent !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
+                      {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
+                    </div>
+                    <TurnTimerCircle
+                      isActive={
+                        !isMyTurn &&
+                        phase === "playing" &&
+                        !isDealing &&
+                        !isAnimating &&
+                        !revealingCardId
+                      }
+                      isPaused={isGamePaused}
+                      color="#ef4444"
+                      onExpire={handleTimeout}
+                    />
                   </div>
+                  <h3 className="game-player-name font-bold w-full text-center truncate">
+                    {botPlayer?.name || "Opponent"}
+                  </h3>
                 </div>
-                <div className="game-player-avatar-wrapper">
-                  <div className="game-player-avatar game-player-avatar-self !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
-                    {humanPlayer.name.charAt(0).toUpperCase()}
-                  </div>
-                  <TurnTimerCircle
-                    isActive={
-                      isMyTurn &&
-                      phase === "playing" &&
-                      !isDealing &&
-                      !isAnimating &&
-                      !revealingCardId
-                    }
-                    isPaused={isGamePaused}
-                    color="#10b981"
-                    onExpire={handleTimeout}
-                  />
-                </div>
-                <span className="game-player-name font-bold w-full text-center truncate">
-                  {humanPlayer.name}
-                </span>
               </div>
-              <button
-                className="fixed left-2 sm:left-6 lg:left-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center px-2 py-1 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg sm:rounded-xl lg:rounded-2xl z-[60]"
-                onClick={() => {
-                  if (!isAnimating) setShowCaptured(true);
-                }}
-              >
-                <span className="text-xs sm:text-lg lg:text-2xl font-black text-white">
-                  {humanPlayer.capturedCards.length}
-                </span>
-                <span className="text-[8px] sm:text-[10px] lg:text-xs text-slate-500 font-bold uppercase tracking-wider">
-                  Captured
-                </span>
-              </button>
-              <Hand
+            </motion.div>
+
+            <motion.div
+              className="game-opponent-hand"
+              initial={{ y: -100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              {botPlayer && (
+                <Hand
+                  cards={
+                    isFirstDeal && dealPhase === "init" ? [] : botPlayer.hand
+                  }
+                  isBot={true}
+                  revealingCardId={revealingCardId}
+                  revealDirection="down"
+                  baseDelay={delay_p2}
+                  dealId={dealId}
+                />
+              )}
+            </motion.div>
+
+            <motion.div
+              className={`game-board-area ${is2v2 ? "is-2v2" : ""}`}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2, type: "spring" }}
+            >
+              <Board
                 cards={
-                  isFirstDeal && dealPhase === "init" ? [] : humanPlayer.hand
+                  isFirstDeal && (dealPhase === "init" || dealPhase === "hands")
+                    ? []
+                    : board
                 }
-                selectedCardId={selectedHandCardId}
-                revealingCardId={revealingCardId}
-                onCardClick={handleHandCardClick}
-                onCardDoubleClick={handleSmartMove}
-                baseDelay={delay_p1}
+                selectedCardIds={selectedBoardCardIds}
+                onCardClick={handleBoardCardClick}
+                baseDelay={0}
                 dealId={dealId}
+                disableAnimation={!isDealing}
               />
-            </div>
-          )}
-        </motion.div>
+            </motion.div>
+          </>
+        )}
+
+        {!is2v2 && (
+          <motion.div
+            className="game-player-hand"
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            {humanPlayer && (
+              <div className="relative flex flex-col items-center gap-4 w-full px-4">
+                <div className="fixed right-2 sm:right-6 lg:right-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center gap-1 z-[60] max-w-[80px] sm:max-w-[100px] lg:max-w-[120px]">
+                  <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
+                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
+                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
+                        {humanPlayer?.roundScopas || 0}
+                      </span>
+                      <Sparkles size={12} className="text-yellow-400" />
+                    </div>
+                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
+                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
+                        {humanPlayer?.score || 0}
+                      </span>
+                      <Trophy size={12} className="text-blue-400" />
+                    </div>
+                  </div>
+                  <div className="game-player-avatar-wrapper">
+                    <div className="game-player-avatar game-player-avatar-self !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
+                      {humanPlayer.name.charAt(0).toUpperCase()}
+                    </div>
+                    <TurnTimerCircle
+                      isActive={
+                        isMyTurn &&
+                        phase === "playing" &&
+                        !isDealing &&
+                        !isAnimating &&
+                        !revealingCardId
+                      }
+                      isPaused={isGamePaused}
+                      color="#10b981"
+                      onExpire={handleTimeout}
+                    />
+                  </div>
+                  <span className="game-player-name font-bold w-full text-center truncate">
+                    {humanPlayer.name}
+                  </span>
+                </div>
+                <button
+                  className="fixed left-2 sm:left-6 lg:left-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center px-2 py-1 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg sm:rounded-xl lg:rounded-2xl z-[60]"
+                  onClick={() => {
+                    if (!isAnimating) setShowCaptured(true);
+                  }}
+                >
+                  <span className="text-xs sm:text-lg lg:text-2xl font-black text-white">
+                    {humanPlayer.capturedCards.length}
+                  </span>
+                  <span className="text-[8px] sm:text-[10px] lg:text-xs text-slate-500 font-bold uppercase tracking-wider">
+                    Captured
+                  </span>
+                </button>
+                <Hand
+                  cards={
+                    isFirstDeal && dealPhase === "init" ? [] : humanPlayer.hand
+                  }
+                  selectedCardId={selectedHandCardId}
+                  revealingCardId={revealingCardId}
+                  onCardClick={handleHandCardClick}
+                  onCardDoubleClick={handleSmartMove}
+                  baseDelay={delay_p1}
+                  dealId={dealId}
+                />
+              </div>
+            )}
+          </motion.div>
+        )}
       </div>
 
       <ScoringModal
@@ -674,7 +734,11 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       <CapturedCardsModal
         isOpen={showCaptured}
         onClose={() => setShowCaptured(false)}
-        cards={humanPlayer?.capturedCards || []}
+        cards={
+          is2v2 && teams
+            ? teams[0].capturedCards
+            : humanPlayer?.capturedCards || []
+        }
       />
 
       <AnimatePresence>
