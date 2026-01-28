@@ -620,10 +620,10 @@
 
 .game-board-area.is-2v2-active {
   position: absolute;
-  left: 2px; /* 2px gap from left */
+  left: 0px; /* Expand to the very left */
   top: 0;
-  /* Maximize width from left to right, allowing cards to move under/over profile area */
-  width: calc(100% - 10px);
+  /* Shrink from right to give more room to sidebar/right profiles */
+  width: calc(100% - 40px);
   height: 100%;
   padding: 0 !important;
   box-sizing: border-box;
@@ -631,7 +631,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 40; /* Above sidebar, but below avatars if needed */
+  z-index: 40;
 }
 
 .game-board-area.is-2v2-active > * {

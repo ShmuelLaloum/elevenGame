@@ -14,24 +14,15 @@ import { useUserStore } from "../../store/userStore";
 import { useUIStore } from "../../store/uiStore";
 import clsx from "clsx";
 import { Zap } from "lucide-react";
+import { usePartyStore, type PartyPlayer } from "../../store/usePartyStore";
 
 interface PartyLobbyProps {
   onStartGame: (
     category: string,
     teamSize: string,
+    playerNames: string[],
     opponentNames?: string[],
   ) => void;
-}
-
-interface PartyPlayer {
-  id: string;
-  name: string;
-  isReady: boolean;
-  isHost: boolean;
-  isBot?: boolean;
-  avatarUrl?: string;
-  team?: number; // 1 or 2
-  position?: number; // position within team
 }
 
 export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
@@ -39,6 +30,11 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
   const spendLightning = useUserStore((s) => s.spendLightning);
   const lastGameConfig = useUserStore((s) => s.lastGameConfig);
   const setLastGameConfig = useUserStore((s) => s.setLastGameConfig);
+  const leaderboard = useUserStore((s) => s.leaderboard);
+  const userName = useMemo(
+    () => leaderboard.find((p) => p.isMe)?.name || "You",
+    [leaderboard],
+  );
 
   const [gameConfig, setGameConfig] = useState<GameModeConfig>(
     (lastGameConfig as GameModeConfig) || {
@@ -52,11 +48,17 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
   );
 
   const [showModeSelect, setShowModeSelect] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-  const [invitedPlayers, setInvitedPlayers] = useState<(PartyPlayer | null)[]>(
-    [],
-  );
-  const [leaderId, setLeaderId] = useState<string>("local"); // Track who is the leader
+  const {
+    invitedPlayers,
+    setInvitedPlayers,
+    leaderId,
+    setLeaderId,
+    isReady,
+    setIsReady,
+    kickPlayer,
+    addPlayer,
+  } = usePartyStore();
+
   const [selectedSlotForSwap, setSelectedSlotForSwap] = useState<number | null>(
     null,
   );
@@ -180,7 +182,7 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
     // Always add the local player first
     party.push({
       id: "local",
-      name: "You",
+      name: userName,
       isReady: isReady,
       isHost: leaderId === "local",
       team: 1,
@@ -327,7 +329,20 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
 
         if (allOthersReady || humanPlayers.length === 1) {
           // Start game immediately - NO DELAY
-          onStartGame(gameConfig.category, gameConfig.teamSize);
+          let playerNames = party.map((p, i) => p?.name || `Bot ${i + 1}`);
+
+          // Reorder for 2v2 Engine: [You, Opp1, Teammate, Opp2]
+          if (gameConfig.teamSize === "2v2") {
+            const reordered = [
+              playerNames[0], // You
+              playerNames[2], // Bot 1 (Opponent)
+              playerNames[1], // Teammate
+              playerNames[3], // Bot 2 (Opponent)
+            ];
+            playerNames = reordered;
+          }
+
+          onStartGame(gameConfig.category, gameConfig.teamSize, playerNames);
         }
       }
     } else {
@@ -363,7 +378,22 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
         }
       } else if (gameConfig.category === "friends") {
         setIsProcessingStart(true);
-        onStartGame(gameConfig.category, gameConfig.teamSize);
+        let playerNames = party.map((p, i) => p?.name || `Player ${i + 1}`);
+
+        // Reorder for 2v2 Engine: [You, Opp1, Teammate, Opp2]
+        // Party Lobby holds: [You, P2, P3, P4] where You+P2 are Team 1, P3+P4 are Team 2
+        // Engine wants: [T1, T2, T1, T2]
+        if (gameConfig.teamSize === "2v2") {
+          const reordered = [
+            playerNames[0], // P1 (T1)
+            playerNames[2], // P3 (T2)
+            playerNames[1], // P2 (T1)
+            playerNames[3], // P4 (T2)
+          ];
+          playerNames = reordered;
+        }
+
+        onStartGame(gameConfig.category, gameConfig.teamSize, playerNames);
       }
     };
 
@@ -383,8 +413,26 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
     opponents: { name: string; avatarUrl?: string }[],
   ) => {
     setShowMatchmaking(false);
-    const opponentNames = opponents.map((o) => o.name);
-    onStartGame(gameConfig.category, gameConfig.teamSize, opponentNames);
+    const playerNames = party
+      .filter((p) => p !== null && !p.isBot)
+      .map((p) => p!.name);
+
+    // Fill remaining slots based on mode
+    if (gameConfig.teamSize === "2v2") {
+      // For 2v2 online, playerNames will be [You, Teammate]
+      // We need to reorder to match the engine's [You, Opp1, Teammate, Opp2]
+      const finalNames = [
+        playerNames[0], // You
+        opponents[0].name, // Opponent 1
+        playerNames[1] || "Teammate", // Teammate
+        opponents[1]?.name || "Opponent 2", // Opponent 2
+      ];
+      onStartGame(gameConfig.category, gameConfig.teamSize, finalNames);
+    } else {
+      // 1v1
+      const finalNames = [playerNames[0], opponents[0].name];
+      onStartGame(gameConfig.category, gameConfig.teamSize, finalNames);
+    }
   };
 
   const handleInvite = (username: string) => {
@@ -398,36 +446,14 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
       isBot: false,
     };
 
-    if (inviteForSlotIndex !== null) {
-      const insertIndex = inviteForSlotIndex > 0 ? inviteForSlotIndex - 1 : 0;
-      setInvitedPlayers((prev) => {
-        const newPlayers = [...prev];
-        while (newPlayers.length <= insertIndex) {
-          newPlayers.push(null);
-        }
-        newPlayers[insertIndex] = newPlayer;
-        return newPlayers;
-      });
-    } else {
-      setInvitedPlayers((prev) => {
-        const emptyIndex = prev.findIndex((p) => p === null);
-        if (emptyIndex >= 0) {
-          const newPlayers = [...prev];
-          newPlayers[emptyIndex] = newPlayer;
-          return newPlayers;
-        }
-        return [...prev, newPlayer];
-      });
-    }
+    addPlayer(newPlayer, inviteForSlotIndex);
     setShowInviteModal(false);
     setInviteForSlotIndex(null);
   };
 
   const handleKickPlayer = (playerId: string) => {
     if (!isCurrentUserLeader) return;
-    setInvitedPlayers((prev) =>
-      prev.map((p) => (p && p.id === playerId ? null : p)),
-    );
+    kickPlayer(playerId);
   };
 
   const handleTransferLeadership = (playerId: string) => {
@@ -446,17 +472,15 @@ export const PartyLobby = ({ onStartGame }: PartyLobbyProps) => {
     const idx1 = slotIndex1 - 1;
     const idx2 = slotIndex2 - 1;
 
-    setInvitedPlayers((prev) => {
-      const maxIdx = Math.max(idx1, idx2);
-      const newPlayers: (PartyPlayer | null)[] = [...prev];
-      while (newPlayers.length <= maxIdx) {
-        newPlayers.push(null);
-      }
-      const temp = newPlayers[idx1];
-      newPlayers[idx1] = newPlayers[idx2];
-      newPlayers[idx2] = temp;
-      return newPlayers;
-    });
+    const maxIdx = Math.max(idx1, idx2);
+    const newPlayers: (PartyPlayer | null)[] = [...invitedPlayers];
+    while (newPlayers.length <= maxIdx) {
+      newPlayers.push(null);
+    }
+    const temp = newPlayers[idx1];
+    newPlayers[idx1] = newPlayers[idx2];
+    newPlayers[idx2] = temp;
+    setInvitedPlayers(newPlayers);
     setSelectedSlotForSwap(null);
   };
 

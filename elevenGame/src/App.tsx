@@ -21,35 +21,33 @@ function App() {
   const handleStart = (
     category: string,
     teamSize: string,
+    playerNamesFromLobby?: string[],
     opponentNames?: string[],
   ) => {
     // Set up players based on category and team size
     // For 2v2: Player order is [You, Opponent1, Teammate, Opponent2]
     // This ensures players 0,2 are on team 0 (diagonal) and 1,3 are on team 1 (diagonal)
-    let players: string[] = [];
+    let players: string[] = playerNamesFromLobby || [];
 
-    if (category === "computer") {
-      if (teamSize === "1v1") {
-        players = ["Player 1", "Bot"];
+    if (players.length === 0) {
+      if (category === "computer") {
+        if (teamSize === "1v1") {
+          players = ["You", "Bot"];
+        } else {
+          players = ["You", "Bot 1", "Teammate Bot", "Bot 2"];
+        }
+      } else if (category === "friends") {
+        if (teamSize === "1v1") {
+          players = ["Player 1", "Player 2"];
+        } else {
+          players = ["Player 1", "Player 2", "Player 3", "Player 4"];
+        }
       } else {
-        // 2v2 vs computer: You and Teammate Bot vs Bot 1 and Bot 2
-        // Order: [You, Bot1, Teammate Bot, Bot2] -> teams: 0:[0,2], 1:[1,3]
-        players = ["Player 1", "Bot 1", "Teammate Bot", "Bot 2"];
-      }
-    } else if (category === "friends") {
-      if (teamSize === "1v1") {
-        players = ["Player 1", "Player 2"];
-      } else {
-        // 2v2 friends: [You, Opponent1, Teammate, Opponent2]
-        players = ["Player 1", "Player 2", "Player 3", "Player 4"];
-      }
-    } else {
-      // battleRoyale or arena - online modes
-      if (teamSize === "1v1") {
-        players = ["Player 1", "Opponent"];
-      } else {
-        // 2v2 online: [You, Opponent1, Teammate, Opponent2]
-        players = ["Player 1", "Opponent 1", "Teammate", "Opponent 2"];
+        if (teamSize === "1v1") {
+          players = ["You", "Opponent"];
+        } else {
+          players = ["You", "Opponent 1", "Teammate", "Opponent 2"];
+        }
       }
     }
 

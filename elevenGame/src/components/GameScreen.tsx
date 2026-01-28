@@ -11,6 +11,7 @@ import { Game2v2Layout } from "./Game2v2Layout";
 import { getValidCaptures } from "../engine/rules";
 import { getBestMove } from "../engine/bot";
 import { audio } from "../utils/audio";
+import { usePartyStore } from "../store/usePartyStore";
 import {
   Menu as MenuIcon,
   Sparkles,
@@ -214,13 +215,9 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       t_timeouts.push(
         setTimeout(() => setDealPhase("board"), t_board_abs * 1000),
       );
+      // Wait for board deal to finish (~0.8s for 4 cards)
       t_timeouts.push(
-        setTimeout(
-          () => {
-            setIsDealing(false);
-          },
-          (t_board_abs + 1.5) * 1000,
-        ),
+        setTimeout(() => setIsDealing(false), (t_board_abs + 1.0) * 1000),
       );
 
       const p1Start = (t_start + (dealOrder === 0 ? 0 : DEAL_DURATION)) * 1000;
@@ -231,15 +228,24 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       scheduleAudio(p2Start);
       scheduleAudio(boardStart);
     } else {
-      t_timeouts.push(setTimeout(() => setIsDealing(false), 2500));
+      // Subsequent deals: wait for last player to finish (~0.8s for 4 cards)
+      // Players are dealt at intervals of (DEAL_DURATION * 0.5)
+      const lastPlayerInterval = (is2v2 ? 3 : 1) * DEAL_DURATION * 0.5;
+      t_timeouts.push(
+        setTimeout(
+          () => setIsDealing(false),
+          (lastPlayerInterval + 1.0) * 1000,
+        ),
+      );
+
       // For subsequent deals, deal order matters
-      const p1Start = (dealOrder === 0 ? 0 : DEAL_DURATION) * 1000;
-      const p2Start = (dealOrder === 1 ? 0 : DEAL_DURATION) * 1000;
+      const p1Start = (dealOrder === 0 ? 0 : DEAL_DURATION * 0.5) * 1000;
+      const p2Start = (dealOrder === 1 ? 0 : DEAL_DURATION * 0.5) * 1000;
 
       if (is2v2) {
         // Also schedule audio for the other 2 players in 2v2
-        const p3Start = (dealOrder === 2 ? 0 : DEAL_DURATION) * 1000;
-        const p4Start = (dealOrder === 3 ? 0 : DEAL_DURATION) * 1000;
+        const p3Start = (dealOrder === 2 ? 0 : DEAL_DURATION * 0.5) * 1000;
+        const p4Start = (dealOrder === 3 ? 0 : DEAL_DURATION * 0.5) * 1000;
         scheduleAudio(p1Start);
         scheduleAudio(p2Start);
         scheduleAudio(p3Start);
@@ -278,12 +284,27 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
 
   const handleTimeout = useCallback(() => {
     if (phase !== "playing" || isDealing || isAnimating) return;
+    console.log("Timer expired - playing best possible move or throwing");
 
     const activePlayer = players[activePlayerIndex];
     if (activePlayer && activePlayer.hand.length > 0) {
+      // Pick a random card (could be smarter but random is the default fallback)
       const playableCard =
         activePlayer.hand[Math.floor(Math.random() * activePlayer.hand.length)];
-      handleSmartMove(playableCard.id);
+
+      // Check if this card can capture anything
+      const validCaptures = getValidCaptures(playableCard, board);
+
+      if (validCaptures.length > 0) {
+        // Automatically perform the first valid capture found
+        playCard(
+          playableCard.id,
+          validCaptures[0].map((c) => c.id),
+        );
+      } else {
+        // No capture possible, just throw the card
+        playCard(playableCard.id, []);
+      }
     }
   }, [
     phase,
@@ -291,7 +312,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
     isAnimating,
     players,
     activePlayerIndex,
-    handleSmartMove,
+    board,
+    playCard,
   ]);
 
   const activePlayerIsBot = players[activePlayerIndex]?.isBot;
@@ -491,6 +513,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
                   <button
                     onClick={() => {
                       setIsMenuOpen(false);
+                      const setIsReady = usePartyStore.getState().setIsReady;
+                      setIsReady(false);
                       onExit?.();
                     }}
                     className="game-menu-option game-menu-option-danger"
@@ -535,55 +559,59 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
             onShowCaptured={() => {
               if (!isAnimating) setShowCaptured(true);
             }}
+            showCaptured={showCaptured}
+            isMenuOpen={isMenuOpen}
           />
         ) : (
           /* 1v1 Layout - UNCHANGED from original */
           <>
-            <motion.div
-              className="game-top-bar"
-              initial={{ y: -50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <div className="game-player-info self-start">
-                <div className="flex flex-col items-center gap-1">
-                  <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
-                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg">
-                      <Sparkles size={12} className="text-yellow-400" />
-                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
-                        {botPlayer?.roundScopas || 0}
-                      </span>
+            {!isMenuOpen && !showCaptured && (
+              <motion.div
+                className="game-top-bar"
+                initial={{ y: -50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <div className="game-player-info self-start">
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
+                      <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg">
+                        <Sparkles size={12} className="text-yellow-400" />
+                        <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
+                          {botPlayer?.roundScopas || 0}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg">
+                        <Trophy size={12} className="text-blue-400" />
+                        <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
+                          {botPlayer?.score || 0}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg">
-                      <Trophy size={12} className="text-blue-400" />
-                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
-                        {botPlayer?.score || 0}
-                      </span>
+                    <div className="game-player-avatar-wrapper">
+                      <div className="game-player-avatar game-player-avatar-opponent !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
+                        {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
+                      </div>
+                      <TurnTimerCircle
+                        isActive={
+                          !isMyTurn &&
+                          phase === "playing" &&
+                          !isDealing &&
+                          !isAnimating &&
+                          !revealingCardId
+                        }
+                        isPaused={isGamePaused}
+                        color="#ef4444"
+                        onExpire={handleTimeout}
+                      />
                     </div>
+                    <h3 className="game-player-name font-bold w-full text-center truncate">
+                      {botPlayer?.name || "Opponent"}
+                    </h3>
                   </div>
-                  <div className="game-player-avatar-wrapper">
-                    <div className="game-player-avatar game-player-avatar-opponent !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
-                      {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
-                    </div>
-                    <TurnTimerCircle
-                      isActive={
-                        !isMyTurn &&
-                        phase === "playing" &&
-                        !isDealing &&
-                        !isAnimating &&
-                        !revealingCardId
-                      }
-                      isPaused={isGamePaused}
-                      color="#ef4444"
-                      onExpire={handleTimeout}
-                    />
-                  </div>
-                  <h3 className="game-player-name font-bold w-full text-center truncate">
-                    {botPlayer?.name || "Opponent"}
-                  </h3>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            )}
 
             <motion.div
               className="game-opponent-hand"
@@ -637,54 +665,60 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
             {humanPlayer && (
               <div className="relative flex flex-col items-center gap-4 w-full px-4">
                 <div className="fixed right-2 sm:right-6 lg:right-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center gap-1 z-[60] max-w-[80px] sm:max-w-[100px] lg:max-w-[120px]">
-                  <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
-                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
-                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
-                        {humanPlayer?.roundScopas || 0}
+                  {!isMenuOpen && !showCaptured && (
+                    <>
+                      <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
+                        <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
+                          <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
+                            {humanPlayer?.roundScopas || 0}
+                          </span>
+                          <Sparkles size={12} className="text-yellow-400" />
+                        </div>
+                        <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
+                          <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
+                            {humanPlayer?.score || 0}
+                          </span>
+                          <Trophy size={12} className="text-blue-400" />
+                        </div>
+                      </div>
+                      <div className="game-player-avatar-wrapper">
+                        <div className="game-player-avatar game-player-avatar-self !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
+                          {humanPlayer.name.charAt(0).toUpperCase()}
+                        </div>
+                        <TurnTimerCircle
+                          isActive={
+                            isMyTurn &&
+                            phase === "playing" &&
+                            !isDealing &&
+                            !isAnimating &&
+                            !revealingCardId
+                          }
+                          isPaused={isGamePaused}
+                          color="#10b981"
+                          onExpire={handleTimeout}
+                        />
+                      </div>
+                      <span className="game-player-name font-bold w-full text-center truncate">
+                        {humanPlayer.name}
                       </span>
-                      <Sparkles size={12} className="text-yellow-400" />
-                    </div>
-                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
-                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
-                        {humanPlayer?.score || 0}
-                      </span>
-                      <Trophy size={12} className="text-blue-400" />
-                    </div>
-                  </div>
-                  <div className="game-player-avatar-wrapper">
-                    <div className="game-player-avatar game-player-avatar-self !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
-                      {humanPlayer.name.charAt(0).toUpperCase()}
-                    </div>
-                    <TurnTimerCircle
-                      isActive={
-                        isMyTurn &&
-                        phase === "playing" &&
-                        !isDealing &&
-                        !isAnimating &&
-                        !revealingCardId
-                      }
-                      isPaused={isGamePaused}
-                      color="#10b981"
-                      onExpire={handleTimeout}
-                    />
-                  </div>
-                  <span className="game-player-name font-bold w-full text-center truncate">
-                    {humanPlayer.name}
-                  </span>
+                    </>
+                  )}
                 </div>
-                <button
-                  className="fixed left-2 sm:left-6 lg:left-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center px-2 py-1 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg sm:rounded-xl lg:rounded-2xl z-[60]"
-                  onClick={() => {
-                    if (!isAnimating) setShowCaptured(true);
-                  }}
-                >
-                  <span className="text-xs sm:text-lg lg:text-2xl font-black text-white">
-                    {humanPlayer.capturedCards.length}
-                  </span>
-                  <span className="text-[8px] sm:text-[10px] lg:text-xs text-slate-500 font-bold uppercase tracking-wider">
-                    Captured
-                  </span>
-                </button>
+                {!isMenuOpen && !showCaptured && (
+                  <button
+                    className="fixed left-2 sm:left-6 lg:left-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center px-2 py-1 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg sm:rounded-xl lg:rounded-2xl z-[60]"
+                    onClick={() => {
+                      if (!isAnimating) setShowCaptured(true);
+                    }}
+                  >
+                    <span className="text-xs sm:text-lg lg:text-2xl font-black text-white">
+                      {humanPlayer.capturedCards.length}
+                    </span>
+                    <span className="text-[8px] sm:text-[10px] lg:text-xs text-slate-500 font-bold uppercase tracking-wider">
+                      Captured
+                    </span>
+                  </button>
+                )}
                 <Hand
                   cards={
                     isFirstDeal && dealPhase === "init" ? [] : humanPlayer.hand
@@ -725,6 +759,8 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           }
         }}
         onExit={() => {
+          const setIsReady = usePartyStore.getState().setIsReady;
+          setIsReady(false);
           resetGame();
           onExit?.();
         }}

@@ -5,31 +5,33 @@ import clsx from "clsx";
 import { Hand } from "./Hand";
 import { Board } from "./Board";
 import { TurnTimerCircle } from "./GameScreen";
-import type { Player, TeamInfo, Card } from "../types";
+import type { Player, TeamInfo } from "../types";
 
 // Props for the complete 2v2 game layout
 interface Game2v2LayoutProps {
   players: Player[];
   teams: TeamInfo[];
-  board: Card[];
+  board: any[];
   activePlayerIndex: number;
-  humanPlayerIndex: number; // Usually 0
+  humanPlayerIndex: number;
   selectedHandCardId: string | null;
   selectedBoardCardIds: string[];
-  revealingCardId?: string | null;
-  dealPhase: "init" | "hands" | "board";
-  isFirstDeal: boolean;
   isDealing: boolean;
+  dealPhase: string;
+  isFirstDeal: boolean;
+  dealId: number | undefined;
   isAnimating: boolean;
+  revealingCardId: string | null | undefined;
   isPaused: boolean;
   phase: string;
-  dealId?: number;
   dealOrder: number;
   onHandCardClick: (cardId: string) => void;
   onHandCardDoubleClick: (cardId: string) => void;
   onBoardCardClick: (cardId: string) => void;
   onTimeout: () => void;
   onShowCaptured: () => void;
+  showCaptured: boolean;
+  isMenuOpen: boolean;
 }
 
 // Turn Timer indicator for 2v2
@@ -68,11 +70,15 @@ const PlayerAvatar2v2 = memo(
     isActive,
     isLocal,
     teamIndex,
+    isPaused,
+    onTimeout,
   }: {
     player: Player;
     isActive: boolean;
     isLocal: boolean;
     teamIndex: number;
+    isPaused: boolean;
+    onTimeout: () => void;
   }) => {
     const teamColors =
       teamIndex === 0
@@ -93,10 +99,10 @@ const PlayerAvatar2v2 = memo(
           {player.name.charAt(0).toUpperCase()}
         </div>
         <TurnIndicator
-          isActive={isActive}
-          isPaused={false}
+          isActive={isActive && !isPaused}
+          isPaused={isPaused}
           teamIndex={teamIndex}
-          onTimeout={() => {}}
+          onTimeout={onTimeout}
         />
       </div>
     );
@@ -146,16 +152,15 @@ export const Game2v2Layout = memo(
     onHandCardClick,
     onHandCardDoubleClick,
     onBoardCardClick,
+    onTimeout,
     onShowCaptured,
+    showCaptured,
+    isPaused,
+    isMenuOpen,
   }: Game2v2LayoutProps) => {
-    // Get players by position
-    // Layout: [You (0)] Bottom-Left, [Opponent1 (1)] Top-Left, [Teammate (2)] Top-Right, [Opponent2 (3)] Bottom-Right
-    // This places teammates diagonally opposite
+    // Layout: [You (0)] Bottom-Right, [Opponent1 (1)] Bottom-Left, [Teammate (2)] Top-Right, [Opponent2 (3)] Top-Left
+    // This places teammates opposite each other vertically on the right side
     const positionedPlayers = useMemo(() => {
-      // Players are ordered: [You (0), Opp1 (1), Teammate (2), Opp2 (3)]
-      // Teammate @ Top-Left (2) - Diagonal from You
-      // Opponent 1 @ Bottom-Left (1)
-      // Opponent 2 @ Top-Right (3)
       return {
         bottomRight: players[0], // You
         topLeft: players[2], // Teammate (Diagonal)
@@ -178,19 +183,21 @@ export const Game2v2Layout = memo(
 
     return (
       <>
-        {/* Right Sidebar for Scores and Captured Pile */}
-        <div className="game-2v2-sidebar">
-          <TeamScoreInSidebar team={team1} isMyTeam={true} />
-          <TeamScoreInSidebar team={team2} isMyTeam={false} />
+        {/* Right Sidebar for Scores and Captured Pile - ONLY show in main game screen */}
+        {!showCaptured && !isPaused && !isMenuOpen && (
+          <div className="game-2v2-sidebar">
+            <TeamScoreInSidebar team={team1} isMyTeam={true} />
+            <TeamScoreInSidebar team={team2} isMyTeam={false} />
 
-          <div className="h-px bg-slate-700/50 my-1" />
+            <div className="h-px bg-slate-700/50 my-1" />
 
-          {/* Team captured cards button */}
-          <button className="game-2v2-captured-btn" onClick={onShowCaptured}>
-            <span className="label">Captured</span>
-            <span className="count">{team1?.capturedCards.length || 0}</span>
-          </button>
-        </div>
+            {/* Team captured cards button */}
+            <button className="game-2v2-captured-btn" onClick={onShowCaptured}>
+              <span className="label">Captured</span>
+              <span className="count">{team1?.capturedCards.length || 0}</span>
+            </button>
+          </div>
+        )}
 
         {/* Top-Left: Teammate (Diagonal from You) */}
         <motion.div
@@ -204,6 +211,8 @@ export const Game2v2Layout = memo(
             isActive={activePlayerIndex === 2}
             isLocal={false}
             teamIndex={0}
+            isPaused={isPaused}
+            onTimeout={onTimeout}
           />
           <span className="text-[9px] sm:text-xs text-blue-400 font-bold mb-1">
             {positionedPlayers.topLeft?.name || "Teammate"}
@@ -228,7 +237,7 @@ export const Game2v2Layout = memo(
 
         {/* Top-Right: Opponent 2 (Aligned with table edge, clearing sidebar) */}
         <motion.div
-          className="fixed top-2 right-[2px] sm:top-4 sm:right-[10px] z-30 flex flex-col items-center"
+          className="fixed top-2 right-[10px] sm:top-4 sm:right-[15px] z-30 flex flex-col items-center"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
@@ -238,6 +247,8 @@ export const Game2v2Layout = memo(
             isActive={activePlayerIndex === 3}
             isLocal={false}
             teamIndex={1}
+            isPaused={isPaused}
+            onTimeout={onTimeout}
           />
           <span className="text-[9px] sm:text-xs text-white/60 font-medium mb-1">
             {positionedPlayers.topRight?.name || "Opponent 2"}
@@ -271,6 +282,8 @@ export const Game2v2Layout = memo(
             isActive={activePlayerIndex === 1}
             isLocal={false}
             teamIndex={1}
+            isPaused={isPaused}
+            onTimeout={onTimeout}
           />
           <span className="text-[9px] sm:text-xs text-white/60 font-medium mt-1">
             {positionedPlayers.bottomLeft?.name || "Opponent 1"}
@@ -317,7 +330,7 @@ export const Game2v2Layout = memo(
 
         {/* Bottom-Right: Local Player (You) Aligned with table edge */}
         <motion.div
-          className="fixed bottom-2 right-[2px] sm:bottom-4 sm:right-[10px] z-50 flex flex-col-reverse items-center"
+          className="fixed bottom-2 right-[10px] sm:bottom-4 sm:right-[15px] z-50 flex flex-col-reverse items-center"
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.5 }}
@@ -329,6 +342,8 @@ export const Game2v2Layout = memo(
                 isActive={activePlayerIndex === humanPlayerIndex}
                 isLocal={true}
                 teamIndex={0}
+                isPaused={isPaused}
+                onTimeout={onTimeout}
               />
               <span className="text-[9px] sm:text-xs font-bold text-emerald-400 mt-1 mb-1">
                 You

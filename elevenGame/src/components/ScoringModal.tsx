@@ -227,12 +227,6 @@ export const ScoringModal = ({
                 ? "Game Over"
                 : "Round Complete"}
           </h2>
-          {is2v2 && (
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              First to {winThreshold} points wins • {bonusMultiplier} pts per
-              bonus
-            </p>
-          )}
         </div>
 
         <div className="p-3 sm:p-8 grid grid-cols-2 gap-3 sm:gap-8 overflow-y-auto no-scrollbar">
