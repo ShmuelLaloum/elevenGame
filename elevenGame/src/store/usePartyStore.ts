@@ -25,7 +25,7 @@ interface PartyStore {
   resetParty: () => void;
 }
 
-export const usePartyStore = create<PartyStore>((set, get) => ({
+export const usePartyStore = create<PartyStore>((set) => ({
   invitedPlayers: [],
   leaderId: 'local',
   isReady: false,
