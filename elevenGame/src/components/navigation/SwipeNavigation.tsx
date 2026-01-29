@@ -29,13 +29,11 @@ export const SwipeNavigation: React.FC<SwipeNavigationProps> = ({
       isNavigating.current = true;
       let nextIndex;
       if (direction === "next") {
-        // Next page (Swipe Left) moves to index-1 for RTL-style wrap as requested
-        // Example: Lobby (0) -> Store (4)
-        nextIndex = (currentIndex - 1 + ROUTES.length) % ROUTES.length;
-      } else {
-        // Previous page (Swipe Right) moves to index+1
-        // Example: Store (4) -> Lobby (0)
+        // Standard LTR: Swipe Left (deltaX > 0) moves to next index
         nextIndex = (currentIndex + 1) % ROUTES.length;
+      } else {
+        // Standard LTR: Swipe Right (deltaX < 0) moves to previous index
+        nextIndex = (currentIndex - 1 + ROUTES.length) % ROUTES.length;
       }
 
       navigate(ROUTES[nextIndex]);
