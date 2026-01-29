@@ -142,6 +142,20 @@ const TeamScoreCard = ({
   );
 };
 
+// New Component to show Winner Profile in Scoring Modal
+const WinnerPlayerInfo = ({ player }: { player: Player }) => {
+  return (
+    <div className="absolute top-4 right-4 flex flex-col items-center gap-1 z-10">
+      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 border-2 border-yellow-300/50 flex items-center justify-center text-white text-xl sm:text-3xl font-black shadow-lg shadow-yellow-500/20">
+        {player.name.charAt(0).toUpperCase()}
+      </div>
+      <span className="text-[10px] sm:text-xs font-bold text-yellow-500 uppercase tracking-tighter bg-slate-900/80 px-2 py-0.5 rounded-full border border-yellow-500/20">
+        {player.name}
+      </span>
+    </div>
+  );
+};
+
 export const ScoringModal = ({
   isOpen,
   players,
@@ -206,6 +220,15 @@ export const ScoringModal = ({
         animate={{ scale: 1, opacity: 1 }}
         className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[95vh]"
       >
+        {/* Show Winner Profile if there is a single player winner (1v1) OR if we want to show it in 2v2 (using first winner) */}
+        {isGrandVictory && winner?.type === "player" && (
+          <WinnerPlayerInfo player={winner.player} />
+        )}
+        {isGrandVictory && winner?.type === "team" && (
+          <WinnerPlayerInfo
+            player={players.find((p) => p.teamIndex === winner.teamIndex)!}
+          />
+        )}
         {/* Victory Header */}
         <div
           className={clsx(

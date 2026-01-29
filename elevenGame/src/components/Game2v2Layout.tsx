@@ -185,20 +185,23 @@ export const Game2v2Layout = memo(
     return (
       <>
         {/* Right Sidebar for Scores and Captured Pile - ONLY show in main game screen */}
-        {!showCaptured && !isPaused && !isMenuOpen && (
-          <div className="game-2v2-sidebar">
-            <TeamScoreInSidebar team={team1} isMyTeam={true} />
-            <TeamScoreInSidebar team={team2} isMyTeam={false} />
+        <div
+          className={clsx(
+            "game-2v2-sidebar",
+            (showCaptured || isPaused || isMenuOpen) && "invisible",
+          )}
+        >
+          <TeamScoreInSidebar team={team1} isMyTeam={true} />
+          <TeamScoreInSidebar team={team2} isMyTeam={false} />
 
-            <div className="h-px bg-slate-700/50 my-1" />
+          <div className="h-px bg-slate-700/50 my-1" />
 
-            {/* Team captured cards button */}
-            <button className="game-2v2-captured-btn" onClick={onShowCaptured}>
-              <span className="label">Captured</span>
-              <span className="count">{team1?.capturedCards.length || 0}</span>
-            </button>
-          </div>
-        )}
+          {/* Team captured cards button */}
+          <button className="game-2v2-captured-btn" onClick={onShowCaptured}>
+            <span className="label">Captured</span>
+            <span className="count">{team1?.capturedCards.length || 0}</span>
+          </button>
+        </div>
 
         {/* Top-Left: Teammate (Diagonal from You) */}
         <motion.div

@@ -12,6 +12,7 @@ import { getValidCaptures } from "../engine/rules";
 import { getBestMove } from "../engine/bot";
 import { audio } from "../utils/audio";
 import { usePartyStore } from "../store/usePartyStore";
+import clsx from "clsx";
 import {
   Menu as MenuIcon,
   Sparkles,
@@ -154,12 +155,12 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScoringModalOpen, setIsScoringModalOpen] = useState(false);
 
-  // Pause Logic: Computer mode pauses on menu/captured, Friends pauses on menu. Online never pauses.
+  // Pause Logic: Computer/Friends mode pauses ONLY on menu. Online (battleRoyale/arena) never pauses.
   const isGamePaused = useMemo(() => {
-    if (category === "computer") return isMenuOpen || showCaptured;
-    if (category === "friends") return isMenuOpen;
-    return false;
-  }, [category, isMenuOpen, showCaptured]);
+    const isOnline = category === "battleRoyale" || category === "arena";
+    if (isOnline) return false;
+    return isMenuOpen;
+  }, [category, isMenuOpen]);
 
   // Sync ScoringModal state in an effect to avoid "update during render" warnings
   useEffect(() => {
@@ -185,8 +186,10 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   const t_board_abs = t_start + (playerCount - 1) * PLAYER_DEAL_GAP + 0.9;
   const isFirstDeal = round === 1;
 
-  const delay_p1 = dealOrder === 0 ? 0 : dealOrder * PLAYER_DEAL_GAP;
-  const delay_p2 = dealOrder === 1 ? 0 : dealOrder * PLAYER_DEAL_GAP;
+  const delay_p1 =
+    ((0 - dealOrder + playerCount) % playerCount) * PLAYER_DEAL_GAP;
+  const delay_p2 =
+    ((1 - dealOrder + playerCount) % playerCount) * PLAYER_DEAL_GAP;
 
   useEffect(() => {
     setIsDealing(true);
@@ -340,14 +343,16 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   ]);
 
   const [bonusNotif, setBonusNotif] = useState<string | null>(null);
+  const [gameStartTime] = useState(Date.now());
   useEffect(() => {
-    if (lastBonusEvent) {
+    // Only show bonus if it happened after the game started (prevents phantom BONUS! at start)
+    if (lastBonusEvent && lastBonusEvent.timestamp > gameStartTime + 1000) {
       setBonusNotif("BONUS!");
       audio.playCapture();
       const timer = setTimeout(() => setBonusNotif(null), 3000);
       return () => clearTimeout(timer);
     }
-  }, [lastBonusEvent]);
+  }, [lastBonusEvent, gameStartTime]);
 
   const handleHandCardClick = useCallback(
     (cardId: string) => {
@@ -553,53 +558,54 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
         ) : (
           /* 1v1 Layout - UNCHANGED from original */
           <>
-            {!isMenuOpen && !showCaptured && (
-              <motion.div
-                className="game-top-bar"
-                initial={{ y: -50, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <div className="game-player-info self-start">
-                  <div className="flex flex-col items-center gap-1">
-                    <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
-                      <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg">
-                        <Sparkles size={12} className="text-yellow-400" />
-                        <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
-                          {botPlayer?.roundScopas || 0}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg">
-                        <Trophy size={12} className="text-blue-400" />
-                        <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
-                          {botPlayer?.score || 0}
-                        </span>
-                      </div>
+            <motion.div
+              className={clsx(
+                "game-top-bar",
+                (isMenuOpen || showCaptured) && "invisible",
+              )}
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div className="game-player-info self-start">
+                <div className="flex flex-col items-center gap-1">
+                  <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
+                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg">
+                      <Sparkles size={12} className="text-yellow-400" />
+                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
+                        {botPlayer?.roundScopas || 0}
+                      </span>
                     </div>
-                    <div className="game-player-avatar-wrapper">
-                      <div className="game-player-avatar game-player-avatar-opponent !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
-                        {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
-                      </div>
-                      <TurnTimerCircle
-                        isActive={
-                          !isMyTurn &&
-                          phase === "playing" &&
-                          !isDealing &&
-                          !isAnimating &&
-                          !revealingCardId
-                        }
-                        isPaused={isGamePaused}
-                        color="#ef4444"
-                        onExpire={handleTimeout}
-                      />
+                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg">
+                      <Trophy size={12} className="text-blue-400" />
+                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
+                        {botPlayer?.score || 0}
+                      </span>
                     </div>
-                    <h3 className="game-player-name font-bold w-full text-center truncate">
-                      {botPlayer?.name || "Opponent"}
-                    </h3>
                   </div>
+                  <div className="game-player-avatar-wrapper">
+                    <div className="game-player-avatar game-player-avatar-opponent !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
+                      {botPlayer?.name?.charAt(0).toUpperCase() || "🤖"}
+                    </div>
+                    <TurnTimerCircle
+                      isActive={
+                        !isMyTurn &&
+                        phase === "playing" &&
+                        !isDealing &&
+                        !isAnimating &&
+                        !revealingCardId
+                      }
+                      isPaused={isGamePaused}
+                      color="#ef4444"
+                      onExpire={handleTimeout}
+                    />
+                  </div>
+                  <h3 className="game-player-name font-bold w-full text-center truncate">
+                    {botPlayer?.name || "Opponent"}
+                  </h3>
                 </div>
-              </motion.div>
-            )}
+              </div>
+            </motion.div>
 
             <motion.div
               className="game-opponent-hand"
@@ -652,61 +658,63 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
           >
             {humanPlayer && (
               <div className="relative flex flex-col items-center gap-4 w-full px-4">
-                <div className="fixed right-2 sm:right-6 lg:right-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center gap-1 z-[60] max-w-[80px] sm:max-w-[100px] lg:max-w-[120px]">
-                  {!isMenuOpen && !showCaptured && (
-                    <>
-                      <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
-                        <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
-                          <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
-                            {humanPlayer?.roundScopas || 0}
-                          </span>
-                          <Sparkles size={12} className="text-yellow-400" />
-                        </div>
-                        <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
-                          <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
-                            {humanPlayer?.score || 0}
-                          </span>
-                          <Trophy size={12} className="text-blue-400" />
-                        </div>
-                      </div>
-                      <div className="game-player-avatar-wrapper">
-                        <div className="game-player-avatar game-player-avatar-self !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
-                          {humanPlayer.name.charAt(0).toUpperCase()}
-                        </div>
-                        <TurnTimerCircle
-                          isActive={
-                            isMyTurn &&
-                            phase === "playing" &&
-                            !isDealing &&
-                            !isAnimating &&
-                            !revealingCardId
-                          }
-                          isPaused={isGamePaused}
-                          color="#10b981"
-                          onExpire={handleTimeout}
-                        />
-                      </div>
-                      <span className="game-player-name font-bold w-full text-center truncate">
-                        {humanPlayer.name}
-                      </span>
-                    </>
+                <div
+                  className={clsx(
+                    "fixed right-2 sm:right-6 lg:right-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center gap-1 z-[60] max-w-[80px] sm:max-w-[100px] lg:max-w-[120px]",
+                    (isMenuOpen || showCaptured) && "invisible",
                   )}
+                >
+                  <div className="flex gap-1 sm:gap-1.5 lg:gap-2">
+                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-yellow-400/10 border border-yellow-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
+                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-yellow-400">
+                        {humanPlayer?.roundScopas || 0}
+                      </span>
+                      <Sparkles size={12} className="text-yellow-400" />
+                    </div>
+                    <div className="flex items-center gap-0.5 px-2 py-0.5 sm:px-3 sm:py-1.5 lg:px-4 lg:py-2 bg-blue-400/10 border border-blue-400/30 rounded sm:rounded-md lg:rounded-lg shrink-0">
+                      <span className="text-[11px] sm:text-sm lg:text-base font-bold text-blue-400">
+                        {humanPlayer?.score || 0}
+                      </span>
+                      <Trophy size={12} className="text-blue-400" />
+                    </div>
+                  </div>
+                  <div className="game-player-avatar-wrapper">
+                    <div className="game-player-avatar game-player-avatar-self !w-11 !h-11 sm:!w-15 sm:!h-15 lg:!w-18 lg:!h-18 text-base sm:text-xl lg:text-2xl">
+                      {humanPlayer.name.charAt(0).toUpperCase()}
+                    </div>
+                    <TurnTimerCircle
+                      isActive={
+                        isMyTurn &&
+                        phase === "playing" &&
+                        !isDealing &&
+                        !isAnimating &&
+                        !revealingCardId
+                      }
+                      isPaused={isGamePaused}
+                      color="#10b981"
+                      onExpire={handleTimeout}
+                    />
+                  </div>
+                  <span className="game-player-name font-bold w-full text-center truncate">
+                    {humanPlayer.name}
+                  </span>
                 </div>
-                {!isMenuOpen && !showCaptured && (
-                  <button
-                    className="fixed left-2 sm:left-6 lg:left-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center px-2 py-1 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg sm:rounded-xl lg:rounded-2xl z-[60]"
-                    onClick={() => {
-                      if (!isAnimating) setShowCaptured(true);
-                    }}
-                  >
-                    <span className="text-xs sm:text-lg lg:text-2xl font-black text-white">
-                      {humanPlayer.capturedCards.length}
-                    </span>
-                    <span className="text-[8px] sm:text-[10px] lg:text-xs text-slate-500 font-bold uppercase tracking-wider">
-                      Captured
-                    </span>
-                  </button>
-                )}
+                <button
+                  className={clsx(
+                    "fixed left-2 sm:left-6 lg:left-10 bottom-2 sm:bottom-6 lg:bottom-10 flex flex-col items-center px-2 py-1 sm:px-3 sm:py-2 lg:px-4 lg:py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg sm:rounded-xl lg:rounded-2xl z-[60]",
+                    (isMenuOpen || showCaptured) && "invisible",
+                  )}
+                  onClick={() => {
+                    if (!isAnimating) setShowCaptured(true);
+                  }}
+                >
+                  <span className="text-xs sm:text-lg lg:text-2xl font-black text-white">
+                    {humanPlayer.capturedCards.length}
+                  </span>
+                  <span className="text-[8px] sm:text-[10px] lg:text-xs text-slate-500 font-bold uppercase tracking-wider">
+                    Captured
+                  </span>
+                </button>
                 <Hand
                   cards={
                     isFirstDeal && dealPhase === "init" ? [] : humanPlayer.hand
