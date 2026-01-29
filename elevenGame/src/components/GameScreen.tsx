@@ -177,15 +177,16 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   const dealOrder = storeDealOrder ?? 0;
 
   const INTRO_DELAY = 1.5;
-  const DEAL_DURATION = 0.8;
+  const PLAYER_DEAL_GAP = 1.1; // Gap between each player's full 4-card deal
 
   const t_start = INTRO_DELAY;
-  // In 2v2, we deal to 4 players before the board. In 1v1, only 2 players.
-  const t_board_abs = t_start + (is2v2 ? 4 : 2) * DEAL_DURATION;
+  // Board starts after all players (4 in 2v2, 2 in 1v1)
+  const playerCount = is2v2 ? 4 : 2;
+  const t_board_abs = t_start + playerCount * PLAYER_DEAL_GAP + 0.9;
   const isFirstDeal = round === 1;
 
-  const delay_p1 = dealOrder === 0 ? 0 : DEAL_DURATION;
-  const delay_p2 = dealOrder === 1 ? 0 : DEAL_DURATION;
+  const delay_p1 = dealOrder === 0 ? 0 : dealOrder * PLAYER_DEAL_GAP;
+  const delay_p2 = dealOrder === 1 ? 0 : dealOrder * PLAYER_DEAL_GAP;
 
   useEffect(() => {
     setIsDealing(true);
@@ -215,44 +216,33 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       t_timeouts.push(
         setTimeout(() => setDealPhase("board"), t_board_abs * 1000),
       );
-      // Wait for board deal to finish (~0.8s for 4 cards)
+      // Wait for board deal to finish
       t_timeouts.push(
-        setTimeout(() => setIsDealing(false), (t_board_abs + 1.0) * 1000),
+        setTimeout(() => setIsDealing(false), (t_board_abs + 1.2) * 1000),
       );
 
-      const p1Start = (t_start + (dealOrder === 0 ? 0 : DEAL_DURATION)) * 1000;
-      const p2Start = (t_start + (dealOrder === 1 ? 0 : DEAL_DURATION)) * 1000;
-      const boardStart = t_board_abs * 1000;
-
-      scheduleAudio(p1Start);
-      scheduleAudio(p2Start);
-      scheduleAudio(boardStart);
+      // Schedule audio based on actual deal order
+      for (let i = 0; i < playerCount; i++) {
+        const orderOffset = (i - dealOrder + playerCount) % playerCount;
+        const pStart = (t_start + orderOffset * PLAYER_DEAL_GAP) * 1000;
+        scheduleAudio(pStart);
+      }
+      // Board audio
+      scheduleAudio(t_board_abs * 1000);
     } else {
-      // Subsequent deals: wait for last player to finish (~0.8s for 4 cards)
-      // Players are dealt at intervals of (DEAL_DURATION * 0.5)
-      const lastPlayerInterval = (is2v2 ? 3 : 1) * DEAL_DURATION * 0.5;
+      // Subsequent deals: wait for all players to finish
       t_timeouts.push(
         setTimeout(
           () => setIsDealing(false),
-          (lastPlayerInterval + 1.0) * 1000,
+          (playerCount * PLAYER_DEAL_GAP + 0.5) * 1000,
         ),
       );
 
-      // For subsequent deals, deal order matters
-      const p1Start = (dealOrder === 0 ? 0 : DEAL_DURATION * 0.5) * 1000;
-      const p2Start = (dealOrder === 1 ? 0 : DEAL_DURATION * 0.5) * 1000;
-
-      if (is2v2) {
-        // Also schedule audio for the other 2 players in 2v2
-        const p3Start = (dealOrder === 2 ? 0 : DEAL_DURATION * 0.5) * 1000;
-        const p4Start = (dealOrder === 3 ? 0 : DEAL_DURATION * 0.5) * 1000;
-        scheduleAudio(p1Start);
-        scheduleAudio(p2Start);
-        scheduleAudio(p3Start);
-        scheduleAudio(p4Start);
-      } else {
-        scheduleAudio(p1Start);
-        scheduleAudio(p2Start);
+      // Schedule audio based on actual deal order
+      for (let i = 0; i < playerCount; i++) {
+        const orderOffset = (i - dealOrder + playerCount) % playerCount;
+        const pStart = orderOffset * PLAYER_DEAL_GAP * 1000;
+        scheduleAudio(pStart);
       }
     }
 

@@ -173,12 +173,13 @@ export const Game2v2Layout = memo(
     const team2 = teams[1];
     const humanPlayer = players[humanPlayerIndex];
 
-    const DEAL_DURATION = 0.8;
+    const PLAYER_DEAL_GAP = 1.1;
     const getPlayerDelay = (playerIndex: number) => {
-      // Calculate deal delay based on deal order
+      // Calculate deal delay based on deal order [0,1,2,3]
+      // (playerIndex - dealOrder + players.length) % players.length gives the relative order in the deal sequence
       const orderOffset =
         (playerIndex - dealOrder + players.length) % players.length;
-      return orderOffset * DEAL_DURATION * 0.5;
+      return orderOffset * PLAYER_DEAL_GAP;
     };
 
     return (
