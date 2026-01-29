@@ -47,6 +47,8 @@ const TurnIndicator = memo(
     teamIndex: number;
     onTimeout: () => void;
   }) => {
+    // We ALWAYS render TurnTimerCircle if it's the player's turn (isActive),
+    // but the circle itself will handle the pause/freeze internally via isPaused.
     if (!isActive) return null;
 
     // Use requested colors: Blue for Team 1 (index 0), Red for Team 2 (index 1)
@@ -99,7 +101,7 @@ const PlayerAvatar2v2 = memo(
           {player.name.charAt(0).toUpperCase()}
         </div>
         <TurnIndicator
-          isActive={isActive && !isPaused}
+          isActive={isActive}
           isPaused={isPaused}
           teamIndex={teamIndex}
           onTimeout={onTimeout}
