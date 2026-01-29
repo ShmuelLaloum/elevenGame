@@ -180,9 +180,9 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
   const PLAYER_DEAL_GAP = 1.1; // Gap between each player's full 4-card deal
 
   const t_start = INTRO_DELAY;
-  // Board starts after all players (4 in 2v2, 2 in 1v1)
+  // Board starts 0.9s after the last player's deal begins
   const playerCount = is2v2 ? 4 : 2;
-  const t_board_abs = t_start + playerCount * PLAYER_DEAL_GAP + 0.9;
+  const t_board_abs = t_start + (playerCount - 1) * PLAYER_DEAL_GAP + 0.9;
   const isFirstDeal = round === 1;
 
   const delay_p1 = dealOrder === 0 ? 0 : dealOrder * PLAYER_DEAL_GAP;
@@ -216,9 +216,9 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
       t_timeouts.push(
         setTimeout(() => setDealPhase("board"), t_board_abs * 1000),
       );
-      // Wait for board deal to finish
+      // Wait for board deal to finish (Board starts at t_board_abs)
       t_timeouts.push(
-        setTimeout(() => setIsDealing(false), (t_board_abs + 1.2) * 1000),
+        setTimeout(() => setIsDealing(false), (t_board_abs + 1.0) * 1000),
       );
 
       // Schedule audio based on actual deal order
@@ -227,15 +227,13 @@ export const GameScreen = ({ onExit }: { onExit?: () => void }) => {
         const pStart = (t_start + orderOffset * PLAYER_DEAL_GAP) * 1000;
         scheduleAudio(pStart);
       }
-      // Board audio
-      scheduleAudio(t_board_abs * 1000);
+      // Board audio - start slightly after board logic triggers
+      scheduleAudio((t_board_abs + 0.1) * 1000);
     } else {
-      // Subsequent deals: wait for all players to finish
+      // Subsequent deals: wait for the last player to finish (~1.1s after start of their deal)
+      const lastPlayerStart = (playerCount - 1) * PLAYER_DEAL_GAP;
       t_timeouts.push(
-        setTimeout(
-          () => setIsDealing(false),
-          (playerCount * PLAYER_DEAL_GAP + 0.5) * 1000,
-        ),
+        setTimeout(() => setIsDealing(false), (lastPlayerStart + 1.1) * 1000),
       );
 
       // Schedule audio based on actual deal order

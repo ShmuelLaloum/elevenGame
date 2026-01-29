@@ -146,7 +146,7 @@ export const Game2v2Layout = memo(
     dealPhase,
     isFirstDeal,
     isDealing,
-    // isAnimating, isPaused, phase - kept in interface for future timer integration
+    isAnimating,
     dealId,
     dealOrder,
     onHandCardClick,
@@ -209,7 +209,12 @@ export const Game2v2Layout = memo(
         >
           <PlayerAvatar2v2
             player={positionedPlayers.topLeft}
-            isActive={activePlayerIndex === 2}
+            isActive={
+              activePlayerIndex === 2 &&
+              !isDealing &&
+              !isAnimating &&
+              !revealingCardId
+            }
             isLocal={false}
             teamIndex={0}
             isPaused={isPaused}
@@ -245,7 +250,12 @@ export const Game2v2Layout = memo(
         >
           <PlayerAvatar2v2
             player={positionedPlayers.topRight}
-            isActive={activePlayerIndex === 3}
+            isActive={
+              activePlayerIndex === 3 &&
+              !isDealing &&
+              !isAnimating &&
+              !revealingCardId
+            }
             isLocal={false}
             teamIndex={1}
             isPaused={isPaused}
@@ -280,7 +290,12 @@ export const Game2v2Layout = memo(
         >
           <PlayerAvatar2v2
             player={positionedPlayers.bottomLeft}
-            isActive={activePlayerIndex === 1}
+            isActive={
+              activePlayerIndex === 1 &&
+              !isDealing &&
+              !isAnimating &&
+              !revealingCardId
+            }
             isLocal={false}
             teamIndex={1}
             isPaused={isPaused}
@@ -340,7 +355,12 @@ export const Game2v2Layout = memo(
             <>
               <PlayerAvatar2v2
                 player={humanPlayer}
-                isActive={activePlayerIndex === humanPlayerIndex}
+                isActive={
+                  activePlayerIndex === humanPlayerIndex &&
+                  !isDealing &&
+                  !isAnimating &&
+                  !revealingCardId
+                }
                 isLocal={true}
                 teamIndex={0}
                 isPaused={isPaused}
